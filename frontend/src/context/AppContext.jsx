@@ -33,17 +33,31 @@ function reducer(state, action) {
 
     case 'MOVE_ADDRESS': {
       // Переместить адрес из одного такси в другое
+      // Важно: обновляем и addresses (строки), и points (координаты для карты)
       const { time, fromTaxiId, toTaxiId, address } = action.payload
       const newResult = state.result.map(group => {
         if (group.time !== time) return group
+
+        // Находим точку с координатами для перемещаемого адреса
+        const fromTaxi = group.taxis.find(t => t.id === fromTaxiId)
+        const movingPoint = fromTaxi?.points?.find(p => p.address === address)
+
         return {
           ...group,
           taxis: group.taxis.map(taxi => {
             if (taxi.id === fromTaxiId) {
-              return { ...taxi, addresses: taxi.addresses.filter(a => a !== address) }
+              return {
+                ...taxi,
+                addresses: taxi.addresses.filter(a => a !== address),
+                points: (taxi.points || []).filter(p => p.address !== address),
+              }
             }
             if (taxi.id === toTaxiId) {
-              return { ...taxi, addresses: [...taxi.addresses, address] }
+              return {
+                ...taxi,
+                addresses: [...taxi.addresses, address],
+                points: movingPoint ? [...(taxi.points || []), movingPoint] : (taxi.points || []),
+              }
             }
             return taxi
           }).filter(taxi => taxi.addresses.length > 0),
