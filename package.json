@@ -1,0 +1,10 @@
+{
+  "name": "taxi-optimizer",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "start cmd /k \"cd backend && npm run dev\" && start cmd /k \"cd frontend && npm run dev\"",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+    "start": "node backend/src/index.js"
+  }
+}

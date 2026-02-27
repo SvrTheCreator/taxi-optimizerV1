@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(timeout 5 node src/index.js)",
+      "Bash(npm create vite@latest frontend -- --template react)",
+      "Bash(npm install react-router-dom vite-plugin-pwa)",
+      "Bash(npm run build)",
+      "Bash(powershell -command \"Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_IPAddress -notlike ''127.*'' -and $_IPAddress -notlike ''169.*'' } | Select-Object IPAddress, InterfaceAlias | Format-Table -AutoSize\")",
+      "Bash(ipconfig)",
+      "Bash(findstr \"IPv4\")"
+    ]
+  }
+}
