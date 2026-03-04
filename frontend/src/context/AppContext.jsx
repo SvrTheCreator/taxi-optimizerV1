@@ -1,11 +1,16 @@
-import { createContext, useContext, useReducer } from 'react'
+import { createContext, useContext, useReducer, useEffect } from 'react'
+
+// Загружаем последний результат из localStorage — работает после закрытия браузера
+function loadSavedResult() {
+  try { return JSON.parse(localStorage.getItem('taxi_result')) } catch { return null }
+}
 
 // Начальное состояние всего приложения
 const initialState = {
   // Список введённых адресов: [{ id, address, time }]
   entries: [],
   // Результат оптимизации: [{ time, taxis: [{ id, addresses }] }]
-  result: null,
+  result: loadSavedResult(),
   // Идёт ли загрузка геокодирования
   loading: false,
   // Сообщение об ошибке
@@ -21,6 +26,10 @@ function reducer(state, action) {
 
     case 'REMOVE_ENTRY':
       return { ...state, entries: state.entries.filter(e => e.id !== action.payload) }
+
+    case 'REMOVE_FAILED':
+      // payload: массив адресов которые не удалось геокодировать
+      return { ...state, entries: state.entries.filter(e => !action.payload.includes(e.address)), loading: false }
 
     case 'SET_RESULT':
       return { ...state, result: action.payload, loading: false }
@@ -80,6 +89,16 @@ const AppContext = createContext(null)
 // Provider — оборачивает всё приложение, предоставляет state и dispatch
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState)
+
+  // Синхронизируем result с localStorage — сохраняет результат между сессиями
+  useEffect(() => {
+    if (state.result) {
+      localStorage.setItem('taxi_result', JSON.stringify(state.result))
+    } else {
+      localStorage.removeItem('taxi_result')
+    }
+  }, [state.result])
+
   return (
     <AppContext.Provider value={{ state, dispatch }}>
       {children}

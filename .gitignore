@@ -12,6 +12,9 @@ backend/.env
 # Данные (сбрасываются при редеплое — это нормально)
 backend/data/
 
+# Claude Code — не коммитим ни settings, ни память (память — в приватном Gist)
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db

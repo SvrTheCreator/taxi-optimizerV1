@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     const fullAddress = hasCity ? address : `${address}, Ростов-на-Дону`
 
     // bbox ограничивает поиск Ростовской областью (страховка от совпадений в других городах)
-    const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${YANDEX_KEY}&geocode=${encodeURIComponent(fullAddress)}&format=json&results=1&bbox=${ROSTOV_BBOX}&rspn=1`
+    const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${YANDEX_KEY}&geocode=${encodeURIComponent(fullAddress)}&format=json&results=1&bbox=${ROSTOV_BBOX}`
     const response = await fetch(url)
     const data = await response.json()
 

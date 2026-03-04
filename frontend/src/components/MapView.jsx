@@ -116,7 +116,12 @@ export default function MapView({ taxi, onClose }) {
         // Карта подстраивается под весь маршрут
         map.setBounds(map.geoObjects.getBounds(), { checkZoomRange: true, zoomMargin: 40 })
 
-        setStatus(`~${routeData.distKm} км · ~${routeData.durationMin} мин`)
+        // Оценка стоимости по тарифу Яндекс Go Эконом в Ростове-на-Дону
+        // Посадка ~150₽ + ~25₽/км + ~6₽/мин, минимум 199₽
+        const km = parseFloat(routeData.distKm)
+        const min = routeData.durationMin
+        const price = Math.round(Math.max(199, 150 + 25 * km + 6 * min) / 10) * 10
+        setStatus(`~${routeData.distKm} км · ~${routeData.durationMin} мин · ~${price}₽`)
         setIsLoading(false)
       })
       .catch(err => {

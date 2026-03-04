@@ -3,11 +3,33 @@
 
 const BASE = '/api'
 
-// Геокодировать адрес → получить координаты
-export async function geocodeAddress(address) {
-  const res = await fetch(`${BASE}/geocode?address=${encodeURIComponent(address)}`)
-  if (!res.ok) throw new Error(`Не удалось найти адрес: ${address}`)
-  return res.json() // { lat, lon, fromCache }
+// Геокодировать адрес через Яндекс.Карты JS API (клиентская сторона)
+// Надёжнее REST API: работает на том же ключе что и карта, лучше понимает короткие адреса
+export function geocodeAddress(address) {
+  return new Promise((resolve, reject) => {
+    // Сначала проверяем кэш бэкенда
+    fetch(`${BASE}/geocode?address=${encodeURIComponent(address)}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(cached => {
+        if (cached) return resolve(cached)
+        // Кэша нет — геокодируем через ymaps.geocode()
+        if (!window.ymaps) return reject(new Error(`Карты не загружены: ${address}`))
+        const hasCity = /ростов|батайск|азов|новочеркасск/i.test(address)
+        const fullAddress = hasCity ? address : `${address}, Ростов-на-Дону`
+        window.ymaps.ready(() => {
+          window.ymaps.geocode(fullAddress, {
+            boundedBy: [[46.5, 38.5], [47.8, 41.5]],
+            results: 1,
+          }).then(res => {
+            const obj = res.geoObjects.get(0)
+            if (!obj) return reject(new Error(`Не найден: ${address}`))
+            const [lat, lon] = obj.geometry.getCoordinates()
+            resolve({ lat, lon, fromCache: false })
+          }).catch(() => reject(new Error(`Не найден: ${address}`)))
+        })
+      })
+      .catch(() => reject(new Error(`Ошибка геокодирования: ${address}`)))
+  })
 }
 
 // Получить подсказки адресов из истории

@@ -2,9 +2,34 @@
 // Паттерн: Debounce — не делаем запрос на каждую букву, ждём паузу 300мс
 
 import { useState, useEffect, useRef } from 'react'
-import { getAddressSuggestions, getYandexSuggestions } from '../utils/api'
+import { getAddressSuggestions } from '../utils/api'
 
-export default function AddressInput({ value, onChange, placeholder }) {
+// Запрашиваем подсказки напрямую из Яндекс.Карт JS API (ymaps.suggest)
+// Это настоящий саджест как в Яндекс.Такси — работает с любым адресом в Ростове
+function getYmapsSuggestions(value) {
+  return new Promise(resolve => {
+    if (!window.ymaps) return resolve([])
+    window.ymaps.ready(() => {
+      window.ymaps
+        .suggest(`${value}, Ростов-на-Дону`, {
+          boundedBy: [[46.5, 38.5], [47.8, 41.5]],
+          results: 6,
+          types: 'geo',
+        })
+        .then(items =>
+          resolve(
+            items.map(item => ({
+              raw: item.displayName,
+              fromYandex: true,
+            }))
+          )
+        )
+        .catch(() => resolve([]))
+    })
+  })
+}
+
+export default function AddressInput({ value, onChange, placeholder, onPaste }) {
   const [suggestions, setSuggestions] = useState([])
   const [showDropdown, setShowDropdown] = useState(false)
   const debounceRef = useRef(null)
@@ -18,19 +43,17 @@ export default function AddressInput({ value, onChange, placeholder }) {
 
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
-      // Запрашиваем параллельно: историю (бэкенд) и Яндекс подсказки (бэкенд)
+      // Запрашиваем параллельно: историю (бэкенд) и Яндекс подсказки (JS API)
       const [historyResults, yandexResults] = await Promise.all([
         getAddressSuggestions(value),
-        getYandexSuggestions(value),
+        getYmapsSuggestions(value),
       ])
 
       // Объединяем: сначала история (часто используемые), потом Яндекс (без дублей)
       const historySet = new Set(historyResults.map(r => r.raw.toLowerCase()))
       const combined = [
         ...historyResults,
-        ...yandexResults
-          .filter(r => !historySet.has(r.raw.toLowerCase()))
-          .map(r => ({ ...r, fromYandex: true })),
+        ...yandexResults.filter(r => !historySet.has(r.raw.toLowerCase())),
       ].slice(0, 7) // максимум 7 подсказок
 
       setSuggestions(combined)
@@ -52,6 +75,7 @@ export default function AddressInput({ value, onChange, placeholder }) {
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
+        onPaste={onPaste}
         onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
         onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
         placeholder={placeholder || 'Введите адрес'}

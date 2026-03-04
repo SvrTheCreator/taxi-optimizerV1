@@ -8,7 +8,14 @@
       "Bash(npm run build)",
       "Bash(powershell -command \"Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_IPAddress -notlike ''127.*'' -and $_IPAddress -notlike ''169.*'' } | Select-Object IPAddress, InterfaceAlias | Format-Table -AutoSize\")",
       "Bash(ipconfig)",
-      "Bash(findstr \"IPv4\")"
+      "Bash(findstr \"IPv4\")",
+      "Bash(gh gist create --private --desc \"taxi-optimizerV1 Claude memory\" \"c:/Work/new-tutorial/taxi-optimizerV1/.claude/MEMORY.md\")",
+      "Bash(where gh)",
+      "Bash(winget list GitHub.cli)",
+      "Bash(winget install --id GitHub.cli --silent)",
+      "Bash(python3 -c \":*)",
+      "Bash(node --version)",
+      "Bash(node -e \":*)"
     ]
   }
 }

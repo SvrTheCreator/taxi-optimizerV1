@@ -43,14 +43,33 @@ export default function InputPage() {
     if (e.key === 'Enter') handleAdd()
   }
 
+  // Массовая вставка: если вставляют несколько строк — добавляем все сразу
+  function handlePaste(e) {
+    const text = e.clipboardData.getData('text')
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+    if (lines.length < 2) return // одиночный адрес — обычная вставка
+
+    e.preventDefault()
+    const time = selectedTime.trim()
+    if (!time) return
+
+    lines.forEach((address, i) => {
+      dispatch({
+        type: 'ADD_ENTRY',
+        payload: { id: (Date.now() + i).toString(), address, time },
+      })
+    })
+    setAddressValue('')
+  }
+
   async function handleOptimize() {
     if (state.entries.length === 0) return
 
     dispatch({ type: 'SET_LOADING', payload: true })
 
     try {
-      // Геокодируем все адреса (бэкенд кэширует, так что повторные — быстрые)
-      const geocoded = await Promise.all(
+      // Геокодируем все адреса параллельно, не останавливаясь на ошибках
+      const results = await Promise.allSettled(
         state.entries.map(async entry => {
           const coords = await geocodeAddress(entry.address)
           await saveAddress(entry.address, coords.lat, coords.lon)
@@ -58,7 +77,23 @@ export default function InputPage() {
         })
       )
 
-      // Запускаем алгоритм оптимизации
+      const geocoded = results.filter(r => r.status === 'fulfilled').map(r => r.value)
+      const failed = results
+        .map((r, i) => r.status === 'rejected' ? state.entries[i].address : null)
+        .filter(Boolean)
+
+      if (geocoded.length === 0) {
+        dispatch({ type: 'SET_ERROR', payload: `Не найдено ни одного адреса: ${failed.join(', ')}` })
+        return
+      }
+
+      if (failed.length > 0) {
+        // Удаляем ненайденные из списка и показываем предупреждение
+        dispatch({ type: 'REMOVE_FAILED', payload: failed })
+        dispatch({ type: 'SET_ERROR', payload: `Не найдено (удалено): ${failed.join(', ')}` })
+      }
+
+      // Запускаем алгоритм оптимизации с теми адресами что нашлись
       const result = optimize(geocoded, WORK_COORDS)
       dispatch({ type: 'SET_RESULT', payload: result })
       navigate('/result')
@@ -88,7 +123,8 @@ export default function InputPage() {
           <AddressInput
             value={addressValue}
             onChange={setAddressValue}
-            placeholder='Адрес поездки'
+            placeholder='Адрес поездки — или вставь список'
+            onPaste={handlePaste}
           />
           <button
             onClick={handleAdd}

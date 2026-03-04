@@ -2,6 +2,7 @@
 // Используем k-means кластеризацию с адаптивным выбором k
 
 const MAX_PER_TAXI = 4
+const MIN_PER_TAXI = 2
 
 // Формула Хаверсина — расстояние между двумя точками (км)
 function haversineDistance(lat1, lon1, lat2, lon2) {
@@ -122,6 +123,50 @@ function splitOverfullClusters(clusters) {
   return result
 }
 
+// Центроид кластера
+function centroid(cluster) {
+  return {
+    lat: cluster.reduce((s, p) => s + p.lat, 0) / cluster.length,
+    lon: cluster.reduce((s, p) => s + p.lon, 0) / cluster.length,
+  }
+}
+
+// Объединяем кластеры меньше MIN_PER_TAXI с ближайшим соседом
+// Если некуда вместить (все полные) — оставляем как есть
+function mergeSmallClusters(clusters) {
+  let result = clusters.map(c => [...c])
+  let changed = true
+
+  while (changed) {
+    changed = false
+    const smallIdx = result.findIndex(c => c.length < MIN_PER_TAXI)
+    if (smallIdx === -1) break
+
+    const small = result[smallIdx]
+    const sc = centroid(small)
+
+    // Ищем ближайший кластер, который может принять людей из маленького
+    let bestIdx = -1, bestDist = Infinity
+    result.forEach((c, i) => {
+      if (i === smallIdx) return
+      if (c.length + small.length > MAX_PER_TAXI) return
+      const cc = centroid(c)
+      const dist = haversineDistance(sc.lat, sc.lon, cc.lat, cc.lon)
+      if (dist < bestDist) { bestDist = dist; bestIdx = i }
+    })
+
+    if (bestIdx !== -1) {
+      result[bestIdx] = [...result[bestIdx], ...small]
+      result.splice(smallIdx, 1)
+      changed = true
+    } else {
+      break // некуда вместить — оставляем
+    }
+  }
+
+  return result
+}
+
 // Главная функция кластеризации с адаптивным k
 // SPREAD_THRESHOLD_KM — если адреса в кластере разбросаны дальше этого расстояния,
 // разбиваем на две машины, даже если людей < 4
@@ -144,6 +189,9 @@ function clusterAddresses(points, workLat, workLon) {
     if (!anyTooSpread) break
     k++
   }
+
+  // Объединяем одиночные кластеры с соседними (минимум MIN_PER_TAXI человек в машине)
+  clusters = mergeSmallClusters(clusters)
 
   // Внутри каждого кластера сортируем по алгоритму ближайшего соседа от рабочего адреса
   return clusters.map(cluster => nearestNeighborOrder(cluster, workLat, workLon))
