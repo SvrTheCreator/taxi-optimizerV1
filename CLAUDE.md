@@ -39,12 +39,13 @@ This is a PWA that optimizes shared taxi routes for shift workers in Rostov-on-D
 
 **Request flow:**
 1. User types address → `AddressInput` calls `ymaps.suggest()` (Yandex Maps JS API directly) + `/api/addresses` (local history)
-2. User clicks "Оптимизировать" → `InputPage` geocodes all entries via `/api/geocode` → runs `optimize()` client-side
+2. User clicks "Оптимизировать" → `InputPage` geocodes all entries: checks `/api/geocode` cache first, then falls back to `ymaps.geocode()` client-side → runs `optimize()` client-side; result saved to `localStorage`
 3. Results shown in `ResultPage` → user taps a taxi → `MapView` builds route via OSRM, displays on Yandex Map
 
 **Optimizer (`frontend/src/utils/optimizer.js`):**
 - Groups entries by shift time
-- Clusters by geography using k-means++ (max 4 passengers per taxi, max 5 km cluster diameter)
+- Clusters by geography using k-means++ (min 2, max 4 passengers per taxi, max 5 km cluster diameter)
+- Post-processes clusters: merges any taxi with < 2 passengers into nearest taxi with available capacity
 - Orders stops within each taxi using nearest-neighbor from the work address
 - Pure client-side, no API calls
 

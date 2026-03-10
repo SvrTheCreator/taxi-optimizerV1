@@ -75,6 +75,30 @@ function reducer(state, action) {
       return { ...state, result: newResult }
     }
 
+    case 'REORDER_ADDRESSES': {
+      // Перетасовать адреса внутри одного такси
+      const { time, taxiId, fromIndex, toIndex } = action.payload
+      const newResult = state.result.map(group => {
+        if (group.time !== time) return group
+        return {
+          ...group,
+          taxis: group.taxis.map(taxi => {
+            if (taxi.id !== taxiId) return taxi
+            const addrs = [...taxi.addresses]
+            const pts = [...(taxi.points || [])]
+            const [movedAddr] = addrs.splice(fromIndex, 1)
+            addrs.splice(toIndex, 0, movedAddr)
+            if (pts.length > fromIndex) {
+              const [movedPt] = pts.splice(fromIndex, 1)
+              pts.splice(toIndex, 0, movedPt)
+            }
+            return { ...taxi, addresses: addrs, points: pts }
+          }),
+        }
+      })
+      return { ...state, result: newResult }
+    }
+
     case 'CLEAR_ENTRIES':
       return { ...state, entries: [], result: null }
 

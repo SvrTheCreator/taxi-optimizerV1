@@ -252,6 +252,20 @@ button { cursor: pointer; border: none; font-family: inherit; }
   font-size: 14px;
 }
 .taxi-address:last-child { border-bottom: none; }
+.taxi-address[draggable] { cursor: grab; }
+.taxi-address[draggable]:active { cursor: grabbing; }
+.taxi-address.dragging { opacity: 0.3; }
+.taxi-address.drag-over { border-top: 2px solid var(--yellow); margin-top: -2px; }
+
+.drag-handle {
+  color: var(--gray-400);
+  font-size: 12px;
+  flex-shrink: 0;
+  user-select: none;
+  cursor: grab;
+  padding: 0 2px;
+  touch-action: none;
+}
 
 .addr-num {
   width: 20px;
