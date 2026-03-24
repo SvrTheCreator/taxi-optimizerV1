@@ -175,24 +175,55 @@ button { cursor: pointer; border: none; font-family: inherit; }
 .entry-list { list-style: none; }
 
 .entry-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 0;
+  position: relative;
+  overflow: hidden;
   border-bottom: 1px solid var(--gray-100);
-  font-size: 14px;
 }
 .entry-item:last-child { border-bottom: none; }
 
-.btn-remove {
-  background: none;
-  color: var(--gray-500);
-  font-size: 14px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  flex-shrink: 0;
+/* The sliding row */
+.entry-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px;
+  background: var(--card-bg);
+  transition: transform 0.2s ease, background 0.15s;
+  position: relative;
+  z-index: 1;
+  min-height: 44px;
+  user-select: none;
+  cursor: pointer;
+  gap: 8px;
 }
-.btn-remove:hover { background: var(--gray-100); color: #e53935; }
+.entry-inner.entry-revealed {
+  transform: translateX(-76px);
+}
+
+/* Selected for reorder */
+.entry-selected .entry-inner { background: #FFF9C4; border-radius: 6px; }
+/* Can be move target */
+.entry-target .entry-inner { background: #EEF4FF; border-radius: 6px; }
+
+.entry-address { flex: 1; font-size: 14px; line-height: 1.3; }
+.entry-target-dot { color: #5C6BC0; font-size: 16px; flex-shrink: 0; }
+.entry-selected-dot { color: #F5A623; font-size: 14px; flex-shrink: 0; }
+
+/* Red delete button revealed on swipe */
+.btn-swipe-delete {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 76px;
+  background: #e53935;
+  color: white;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 0;
+}
 
 /* ======= BOTTOM BAR ======= */
 .bottom-bar {
@@ -244,27 +275,79 @@ button { cursor: pointer; border: none; font-family: inherit; }
 
 .taxi-addresses { list-style: none; }
 .taxi-address {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
+  position: relative;
+  overflow: hidden;
   border-bottom: 1px solid var(--gray-100);
   font-size: 14px;
 }
 .taxi-address:last-child { border-bottom: none; }
-.taxi-address[draggable] { cursor: grab; }
-.taxi-address[draggable]:active { cursor: grabbing; }
-.taxi-address.dragging { opacity: 0.3; }
 .taxi-address.drag-over { border-top: 2px solid var(--yellow); margin-top: -2px; }
 
+.addr-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  background: var(--card-bg);
+  transition: transform 0.2s ease, background 0.15s;
+  position: relative;
+  z-index: 1;
+  min-height: 40px;
+  user-select: none;
+  cursor: pointer;
+}
+.addr-inner[draggable] { cursor: grab; }
+.addr-inner[draggable]:active { cursor: grabbing; }
+.addr-inner.dragging { opacity: 0.3; }
+.addr-inner.addr-revealed { transform: translateX(-60px); }
+.addr-inner.addr-selected { background: #FFF9C4; border-radius: 6px; }
+.addr-inner.addr-target { background: #EEF4FF; border-radius: 6px; }
+
+.btn-addr-delete {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 60px;
+  background: #e53935;
+  color: white;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .drag-handle {
-  color: var(--gray-400);
+  color: var(--gray-500);
   font-size: 12px;
   flex-shrink: 0;
   user-select: none;
   cursor: grab;
   padding: 0 2px;
-  touch-action: none;
+}
+
+/* Корзина для десктопа — появляется при наведении */
+.btn-addr-trash {
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  font-size: 15px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s;
+}
+@media (hover: hover) {
+  .addr-inner:hover .btn-addr-trash { opacity: 1; }
+  .btn-addr-trash:hover { color: #e53935; background: var(--gray-100); }
+}
+@media (hover: none) {
+  .btn-addr-trash { display: none; }
 }
 
 .addr-num {

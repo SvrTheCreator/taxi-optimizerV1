@@ -1,9 +1,91 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import AddressInput from '../components/AddressInput'
 import { geocodeAddress, saveAddress } from '../utils/api'
 import { optimize } from '../utils/optimizer'
+
+function EntryItem({
+  entry,
+  isSelected,
+  isRevealed,
+  canBeTarget,
+  onTap,
+  onReveal,
+  onDelete,
+}) {
+  const touchStartX = useRef(null)
+  const touchStartY = useRef(null)
+  const lastTouchEnd = useRef(0)
+
+  function handleTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+
+  function handleTouchEnd(e) {
+    if (touchStartX.current === null) return
+    lastTouchEnd.current = Date.now()
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
+    touchStartX.current = null
+
+    const isSwipeLeft = dx < -50 && Math.abs(dx) > Math.abs(dy) * 1.5
+    const isSwipeRight = dx > 30 && Math.abs(dx) > Math.abs(dy) * 1.5
+    const isTap = Math.abs(dx) < 10 && Math.abs(dy) < 10
+
+    if (isSwipeLeft && !isRevealed) {
+      onReveal()
+      return
+    }
+    if (isSwipeRight && isRevealed) {
+      onReveal()
+      return
+    }
+    if (isTap) {
+      if (isRevealed) {
+        onReveal()
+        return
+      }
+      onTap()
+    }
+  }
+
+  function handleClick() {
+    if (Date.now() - lastTouchEnd.current < 500) return // skip ghost click after touch
+    if (isRevealed) {
+      onReveal()
+      return
+    }
+    onTap()
+  }
+
+  return (
+    <li
+      className={`entry-item${isSelected ? ' entry-selected' : ''}${canBeTarget ? ' entry-target' : ''}`}
+    >
+      <div
+        className={`entry-inner${isRevealed ? ' entry-revealed' : ''}`}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onClick={handleClick}
+      >
+        <span className='entry-address'>{entry.address}</span>
+        {canBeTarget && <span className='entry-target-dot'>↕</span>}
+        {isSelected && <span className='entry-selected-dot'>✓</span>}
+      </div>
+      <button
+        className='btn-swipe-delete'
+        onClick={e => {
+          e.stopPropagation()
+          onDelete()
+        }}
+      >
+        Удалить
+      </button>
+    </li>
+  )
+}
 
 // Рабочий адрес — точка отправления всех машин
 const WORK_ADDRESS = 'Республиканская ул., 106А, Ростов-на-Дону'
@@ -20,6 +102,8 @@ export default function InputPage() {
   const [timeValue, setTimeValue] = useState('20:00')
   const [customTime, setCustomTime] = useState('')
   const [useCustomTime, setUseCustomTime] = useState(false)
+  const [selectedEntryId, setSelectedEntryId] = useState(null)
+  const [revealedEntryId, setRevealedEntryId] = useState(null)
 
   const selectedTime = useCustomTime ? customTime : timeValue
 
@@ -46,7 +130,10 @@ export default function InputPage() {
   // Массовая вставка: если вставляют несколько строк — добавляем все сразу
   function handlePaste(e) {
     const text = e.clipboardData.getData('text')
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+    const lines = text
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
     if (lines.length < 2) return // одиночный адрес — обычная вставка
 
     e.preventDefault()
@@ -77,20 +164,30 @@ export default function InputPage() {
         })
       )
 
-      const geocoded = results.filter(r => r.status === 'fulfilled').map(r => r.value)
+      const geocoded = results
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value)
       const failed = results
-        .map((r, i) => r.status === 'rejected' ? state.entries[i].address : null)
+        .map((r, i) =>
+          r.status === 'rejected' ? state.entries[i].address : null
+        )
         .filter(Boolean)
 
       if (geocoded.length === 0) {
-        dispatch({ type: 'SET_ERROR', payload: `Не найдено ни одного адреса: ${failed.join(', ')}` })
+        dispatch({
+          type: 'SET_ERROR',
+          payload: `Не найдено ни одного адреса: ${failed.join(', ')}`,
+        })
         return
       }
 
       if (failed.length > 0) {
         // Удаляем ненайденные из списка и показываем предупреждение
         dispatch({ type: 'REMOVE_FAILED', payload: failed })
-        dispatch({ type: 'SET_ERROR', payload: `Не найдено (удалено): ${failed.join(', ')}` })
+        dispatch({
+          type: 'SET_ERROR',
+          payload: `Не найдено (удалено): ${failed.join(', ')}`,
+        })
       }
 
       // Запускаем алгоритм оптимизации с теми адресами что нашлись
@@ -100,6 +197,29 @@ export default function InputPage() {
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message })
     }
+  }
+
+  function handleEntryTap(entry) {
+    setRevealedEntryId(null)
+    if (selectedEntryId === null) {
+      setSelectedEntryId(entry.id)
+    } else if (selectedEntryId === entry.id) {
+      setSelectedEntryId(null)
+    } else {
+      const sel = state.entries.find(e => e.id === selectedEntryId)
+      if (sel?.time === entry.time) {
+        dispatch({
+          type: 'REORDER_ENTRIES',
+          payload: { fromId: selectedEntryId, toId: entry.id },
+        })
+      }
+      setSelectedEntryId(null)
+    }
+  }
+
+  function handleSwipeReveal(entryId) {
+    setSelectedEntryId(null)
+    setRevealedEntryId(revealedEntryId === entryId ? null : entryId)
   }
 
   // Группируем введённые адреса по времени для отображения
@@ -113,7 +233,11 @@ export default function InputPage() {
     <div className='page'>
       <header className='header'>
         <h1>Такси Оптимизатор</h1>
-        <p className='subtitle'>Рабочий адрес: {WORK_ADDRESS}</p>
+        <p className='subtitle'>
+          Рабочий адрес:
+          <br />
+          {WORK_ADDRESS}
+        </p>
       </header>
 
       <div className='input-section card'>
@@ -171,25 +295,47 @@ export default function InputPage() {
 
       {Object.keys(byTime).length > 0 && (
         <div className='entries-section'>
+          {selectedEntryId && (
+            <p className='tap-hint'>
+              Нажмите на другой адрес в той же группе — он встанет на это место
+            </p>
+          )}
+          {!selectedEntryId && (
+            <p className='tap-hint'>
+              Нажмите адрес — выберите куда переставить · Свайп влево — удалить
+            </p>
+          )}
           {Object.keys(byTime)
             .sort()
             .map(time => (
               <div key={time} className='card'>
                 <h3 className='time-badge'>{time}</h3>
                 <ul className='entry-list'>
-                  {byTime[time].map(entry => (
-                    <li key={entry.id} className='entry-item'>
-                      <span>{entry.address}</span>
-                      <button
-                        className='btn-remove'
-                        onClick={() =>
+                  {byTime[time].map(entry => {
+                    const sel = selectedEntryId
+                      ? state.entries.find(e => e.id === selectedEntryId)
+                      : null
+                    const canBeTarget =
+                      sel !== null &&
+                      sel?.id !== entry.id &&
+                      sel?.time === entry.time
+                    return (
+                      <EntryItem
+                        key={entry.id}
+                        entry={entry}
+                        isSelected={selectedEntryId === entry.id}
+                        isRevealed={revealedEntryId === entry.id}
+                        canBeTarget={canBeTarget}
+                        onTap={() => handleEntryTap(entry)}
+                        onReveal={() => handleSwipeReveal(entry.id)}
+                        onDelete={() => {
+                          setSelectedEntryId(null)
+                          setRevealedEntryId(null)
                           dispatch({ type: 'REMOVE_ENTRY', payload: entry.id })
-                        }
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  ))}
+                        }}
+                      />
+                    )
+                  })}
                 </ul>
               </div>
             ))}

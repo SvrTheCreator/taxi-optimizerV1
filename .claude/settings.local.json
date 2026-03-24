@@ -16,7 +16,13 @@
       "Bash(python3 -c \":*)",
       "Bash(node --version)",
       "Bash(node -e \":*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :3001)",
+      "Bash(taskkill /PID 4560 /F)",
+      "Bash(cmd /c \"taskkill /PID 4560 /F\")",
+      "Bash(powershell -Command \"Stop-Process -Id 4560 -Force\")",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { formatResultAsText } from '../utils/optimizer'
@@ -9,51 +9,62 @@ export default function ResultPage() {
   const { state, dispatch } = useApp()
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
-  const [mapTaxi, setMapTaxi] = useState(null)      // такси открытое в карте
+  const [mapTaxi, setMapTaxi] = useState(null)
   const [movingAddress, setMovingAddress] = useState(null)
-  const [dragInfo, setDragInfo] = useState(null)       // { taxiId, time, index }
+  const [dragInfo, setDragInfo] = useState(null)
   const [dragOverIndex, setDragOverIndex] = useState(null)
-  const touchRef = useRef(null)   // для touch drag на мобильных
+  const [selectedAddr, setSelectedAddr] = useState(null)   // { address, taxiId, time, index }
+  const [revealedAddr, setRevealedAddr] = useState(null)   // { address, taxiId }
 
-  // --- Touch drag для мобильных ---
-  const handleTouchStart = useCallback((e, taxiId, time, index) => {
-    const touch = e.touches[0]
-    touchRef.current = { taxiId, time, index, startY: touch.clientY, moved: false, el: e.currentTarget }
-    e.currentTarget.classList.add('dragging')
-  }, [])
+  const addrTouchStart = useRef(null)
+  const addrTouchActive = useRef(false)
 
-  const handleTouchMove = useCallback((e) => {
-    if (!touchRef.current) return
-    const touch = e.touches[0]
-    const dy = Math.abs(touch.clientY - touchRef.current.startY)
-    if (dy > 8) touchRef.current.moved = true
-    if (!touchRef.current.moved) return
-    e.preventDefault()
+  function handleAddrTouchStart(e, addr, taxiId, time, index) {
+    addrTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, addr, taxiId, time, index }
+    addrTouchActive.current = false
+  }
 
-    const el = document.elementFromPoint(touch.clientX, touch.clientY)
-    if (!el) return
-    const li = el.closest('.taxi-address')
-    if (!li) return
-    const ul = li.closest('.taxi-addresses')
-    if (!ul) return
-    const items = Array.from(ul.querySelectorAll('.taxi-address'))
-    const overIdx = items.indexOf(li)
-    if (overIdx !== -1) setDragOverIndex(overIdx)
-  }, [])
+  function handleAddrTouchEnd(e) {
+    if (!addrTouchStart.current) return
+    addrTouchActive.current = true
+    setTimeout(() => { addrTouchActive.current = false }, 500)
+    const { x, y, addr, taxiId, time, index } = addrTouchStart.current
+    const dx = e.changedTouches[0].clientX - x
+    const dy = e.changedTouches[0].clientY - y
+    addrTouchStart.current = null
 
-  const handleTouchEnd = useCallback(() => {
-    if (!touchRef.current) return
-    const { taxiId, time, index, moved, el } = touchRef.current
-    el.classList.remove('dragging')
-    if (moved && dragOverIndex !== null && dragOverIndex !== index) {
-      dispatch({
-        type: 'REORDER_ADDRESSES',
-        payload: { time, taxiId, fromIndex: index, toIndex: dragOverIndex },
-      })
+    const isRevealed = revealedAddr?.address === addr && revealedAddr?.taxiId === taxiId
+    const isSwipeLeft = dx < -50 && Math.abs(dx) > Math.abs(dy) * 1.5
+    const isSwipeRight = dx > 30 && Math.abs(dx) > Math.abs(dy) * 1.5
+    const isTap = Math.abs(dx) < 10 && Math.abs(dy) < 10
+
+    if (isSwipeLeft && !isRevealed) { setRevealedAddr({ address: addr, taxiId }); setSelectedAddr(null); return }
+    if (isSwipeRight && isRevealed) { setRevealedAddr(null); return }
+    if (isTap) {
+      if (isRevealed) { setRevealedAddr(null); return }
+      handleAddrTap(addr, taxiId, time, index)
     }
-    touchRef.current = null
-    setDragOverIndex(null)
-  }, [dragOverIndex, dispatch])
+  }
+
+  function handleAddrTap(addr, taxiId, time, index) {
+    setRevealedAddr(null)
+    if (!selectedAddr) {
+      setSelectedAddr({ address: addr, taxiId, time, index })
+    } else if (selectedAddr.address === addr && selectedAddr.taxiId === taxiId) {
+      setSelectedAddr(null)
+    } else if (selectedAddr.taxiId === taxiId) {
+      dispatch({ type: 'REORDER_ADDRESSES', payload: { time, taxiId, fromIndex: selectedAddr.index, toIndex: index } })
+      setSelectedAddr(null)
+    } else {
+      setSelectedAddr(null)
+    }
+  }
+
+  function handleAddrClick(e, addr, taxiId, time, index) {
+    e.stopPropagation()
+    if (addrTouchActive.current) return
+    handleAddrTap(addr, taxiId, time, index)
+  }
 
   if (!state.result) {
     navigate('/')
@@ -87,11 +98,9 @@ export default function ResultPage() {
   }
 
   function handleTaxiClick(taxi) {
-    if (movingAddress) {
-      handleMoveTo(taxi.id)
-    } else {
-      setMapTaxi(taxi) // открываем карту
-    }
+    if (selectedAddr || revealedAddr) { setSelectedAddr(null); setRevealedAddr(null); return }
+    if (movingAddress) { handleMoveTo(taxi.id); return }
+    setMapTaxi(taxi)
   }
 
   function handleDragStart(e, taxiId, time, index) {
@@ -166,31 +175,51 @@ export default function ResultPage() {
                     </div>
                   </div>
                   <ul className="taxi-addresses">
-                    {taxi.addresses.map((addr, i) => (
-                      <li
-                        key={addr + i}
-                        className={`taxi-address${dragInfo && dragInfo.taxiId === taxi.id && dragOverIndex === i ? ' drag-over' : ''}`}
-                        draggable
-                        onDragStart={e => handleDragStart(e, taxi.id, group.time, i)}
-                        onDragEnd={handleDragEnd}
-                        onDragOver={e => handleDragOver(e, taxi.id, i)}
-                        onDrop={e => handleDrop(e, taxi.id, group.time, i)}
-                        onTouchStart={e => handleTouchStart(e, taxi.id, group.time, i)}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                      >
-                        <span className="drag-handle" title="Перетащи для сортировки" onClick={e => e.stopPropagation()}>☰</span>
-                        <span className="addr-num">{i + 1}</span>
-                        <span className="addr-text">{addr}</span>
-                        <button
-                          className="btn-move"
-                          title="Переместить в другую машину"
-                          onClick={e => { e.stopPropagation(); handleMoveStart(addr, taxi.id, group.time) }}
+                    {taxi.addresses.map((addr, i) => {
+                      const isRevealed = revealedAddr?.address === addr && revealedAddr?.taxiId === taxi.id
+                      const isSelected = selectedAddr?.address === addr && selectedAddr?.taxiId === taxi.id
+                      const canBeTarget = selectedAddr?.taxiId === taxi.id && !isSelected
+                      return (
+                        <li
+                          key={addr + i}
+                          className={`taxi-address${dragInfo && dragInfo.taxiId === taxi.id && dragOverIndex === i ? ' drag-over' : ''}`}
+                          onDragOver={e => handleDragOver(e, taxi.id, i)}
+                          onDrop={e => handleDrop(e, taxi.id, group.time, i)}
                         >
-                          ⇄
-                        </button>
-                      </li>
-                    ))}
+                          <div
+                            className={`addr-inner${isRevealed ? ' addr-revealed' : ''}${isSelected ? ' addr-selected' : ''}${canBeTarget ? ' addr-target' : ''}`}
+                            draggable
+                            onDragStart={e => handleDragStart(e, taxi.id, group.time, i)}
+                            onDragEnd={handleDragEnd}
+                            onTouchStart={e => handleAddrTouchStart(e, addr, taxi.id, group.time, i)}
+                            onTouchEnd={handleAddrTouchEnd}
+                            onClick={e => handleAddrClick(e, addr, taxi.id, group.time, i)}
+                          >
+                            <span className="drag-handle" onClick={e => e.stopPropagation()}>☰</span>
+                            <span className="addr-num">{i + 1}</span>
+                            <span className="addr-text">{addr}</span>
+                            <button
+                              className="btn-move"
+                              onClick={e => { e.stopPropagation(); handleMoveStart(addr, taxi.id, group.time) }}
+                            >
+                              ⇄
+                            </button>
+                            <button
+                              className="btn-addr-trash"
+                              onClick={e => { e.stopPropagation(); dispatch({ type: 'REMOVE_ADDRESS', payload: { time: group.time, taxiId: taxi.id, address: addr } }) }}
+                            >
+                              🗑
+                            </button>
+                          </div>
+                          <button
+                            className="btn-addr-delete"
+                            onClick={e => { e.stopPropagation(); setRevealedAddr(null); dispatch({ type: 'REMOVE_ADDRESS', payload: { time: group.time, taxiId: taxi.id, address: addr } }) }}
+                          >
+                            🗑
+                          </button>
+                        </li>
+                      )
+                    })}
                   </ul>
                   {movingAddress && movingAddress.fromTaxiId !== taxi.id && (
                     <div className="drop-overlay">Добавить сюда</div>

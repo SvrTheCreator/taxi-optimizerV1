@@ -99,6 +99,36 @@ function reducer(state, action) {
       return { ...state, result: newResult }
     }
 
+    case 'REMOVE_ADDRESS': {
+      const { time, taxiId, address } = action.payload
+      const newResult = state.result.map(group => {
+        if (group.time !== time) return group
+        return {
+          ...group,
+          taxis: group.taxis.map(taxi => {
+            if (taxi.id !== taxiId) return taxi
+            return {
+              ...taxi,
+              addresses: taxi.addresses.filter(a => a !== address),
+              points: (taxi.points || []).filter(p => p.address !== address),
+            }
+          }).filter(taxi => taxi.addresses.length > 0),
+        }
+      })
+      return { ...state, result: newResult }
+    }
+
+    case 'REORDER_ENTRIES': {
+      const { fromId, toId } = action.payload
+      const entries = [...state.entries]
+      const fromIdx = entries.findIndex(e => e.id === fromId)
+      const toIdx = entries.findIndex(e => e.id === toId)
+      if (fromIdx === -1 || toIdx === -1) return state
+      const [moved] = entries.splice(fromIdx, 1)
+      entries.splice(toIdx, 0, moved)
+      return { ...state, entries }
+    }
+
     case 'CLEAR_ENTRIES':
       return { ...state, entries: [], result: null }
 
