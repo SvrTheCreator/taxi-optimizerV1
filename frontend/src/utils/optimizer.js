@@ -117,7 +117,8 @@ function splitOverfullClusters(clusters) {
       // Разбиваем на части по MAX_PER_TAXI
       const k = Math.ceil(cluster.length / MAX_PER_TAXI)
       const subclusters = bestKmeans(cluster, k)
-      result.push(...subclusters)
+      // k-means не гарантирует равномерное деление — рекурсивно разбиваем
+      result.push(...splitOverfullClusters(subclusters))
     }
   }
   return result
