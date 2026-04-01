@@ -108,17 +108,27 @@ function bestKmeans(points, k, runs = 5) {
 }
 
 // Если кластер больше MAX_PER_TAXI — разбиваем его на подкластеры
-function splitOverfullClusters(clusters) {
+// K-means не гарантирует размер кластера, поэтому после нескольких попыток
+// принудительно режем по расстоянию от центроида
+function splitOverfullClusters(clusters, depth = 0) {
   const result = []
   for (const cluster of clusters) {
     if (cluster.length <= MAX_PER_TAXI) {
       result.push(cluster)
+    } else if (depth > 5) {
+      // K-means не справился — принудительно режем на куски по MAX_PER_TAXI
+      // Сортируем по расстоянию от центроида чтобы близкие точки были вместе
+      const c = centroid(cluster)
+      const sorted = [...cluster].sort((a, b) =>
+        haversineDistance(a.lat, a.lon, c.lat, c.lon) - haversineDistance(b.lat, b.lon, c.lat, c.lon)
+      )
+      for (let i = 0; i < sorted.length; i += MAX_PER_TAXI) {
+        result.push(sorted.slice(i, i + MAX_PER_TAXI))
+      }
     } else {
-      // Разбиваем на части по MAX_PER_TAXI
       const k = Math.ceil(cluster.length / MAX_PER_TAXI)
       const subclusters = bestKmeans(cluster, k)
-      // k-means не гарантирует равномерное деление — рекурсивно разбиваем
-      result.push(...splitOverfullClusters(subclusters))
+      result.push(...splitOverfullClusters(subclusters, depth + 1))
     }
   }
   return result

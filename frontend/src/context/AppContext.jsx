@@ -47,6 +47,10 @@ function reducer(state, action) {
       const newResult = state.result.map(group => {
         if (group.time !== time) return group
 
+        // Проверяем лимит: максимум 4 пассажира в такси
+        const toTaxi = group.taxis.find(t => t.id === toTaxiId)
+        if (toTaxi && toTaxi.addresses.length >= 4) return group
+
         // Находим точку с координатами для перемещаемого адреса
         const fromTaxi = group.taxis.find(t => t.id === fromTaxiId)
         const movingPoint = fromTaxi?.points?.find(p => p.address === address)
