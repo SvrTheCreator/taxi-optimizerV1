@@ -7,6 +7,10 @@ import addressesRouter from './routes/addresses.js'
 import geocodeRouter from './routes/geocode.js'
 import sessionsRouter from './routes/sessions.js'
 import suggestRouter from './routes/suggest.js'
+import authRouter from './routes/auth.js'
+import shiftsRouter from './routes/shifts.js'
+import usersRouter from './routes/users.js'
+import addressRequestsRouter from './routes/addressRequests.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -20,6 +24,10 @@ app.use('/api/addresses', addressesRouter)
 app.use('/api/geocode', geocodeRouter)
 app.use('/api/sessions', sessionsRouter)
 app.use('/api/suggest', suggestRouter)
+app.use('/api/auth', authRouter)
+app.use('/api/shifts', shiftsRouter)
+app.use('/api/users', usersRouter)
+app.use('/api/address-requests', addressRequestsRouter)
 
 // Проверочный эндпоинт
 app.get('/health', (_req, res) => res.json({ ok: true }))
