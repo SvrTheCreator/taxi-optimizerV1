@@ -602,6 +602,23 @@ button { cursor: pointer; border: none; font-family: inherit; }
   outline: none;
 }
 .auth-page input:focus { border-color: var(--yellow); }
+.pin-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.pin-field input {
+  width: 100%;
+  padding-right: 44px;
+}
+.pin-toggle {
+  position: absolute;
+  right: 8px;
+  background: none;
+  font-size: 18px;
+  padding: 4px;
+  line-height: 1;
+}
 .auth-page button[type="submit"] {
   background: var(--yellow);
   color: var(--black);
@@ -688,24 +705,33 @@ button { cursor: pointer; border: none; font-family: inherit; }
 .address-change button:disabled { opacity: 0.5; }
 .address-msg { font-size: 13px; color: var(--gray-500); }
 
-/* Date picker (horizontal scroll) */
-.date-picker {
+/* Date slider (Swiper) */
+.date-slider {
+  margin-bottom: 14px;
+  padding: 4px 0;
+}
+.date-slide {
   display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  margin-bottom: 12px;
-}
-.date-btn {
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   background: var(--gray-100);
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  flex-shrink: 0;
+  padding: 10px 16px;
+  border-radius: 12px;
+  min-width: 58px;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
 }
-.date-btn.active { background: var(--yellow); color: var(--black); }
+.date-slide:active { transform: scale(0.93); }
+.date-slide.active {
+  background: var(--yellow);
+  color: var(--black);
+  box-shadow: 0 3px 10px rgba(255, 221, 45, 0.4);
+}
+.date-slide-day { font-size: 11px; font-weight: 600; opacity: 0.6; }
+.date-slide.active .date-slide-day { opacity: 1; }
+.date-slide-num { font-size: 20px; font-weight: 700; line-height: 1.1; }
+.date-slide-month { font-size: 11px; opacity: 0.6; }
+.date-slide.active .date-slide-month { opacity: 1; }
 
 /* Shift time buttons */
 .shift-times {
@@ -761,8 +787,17 @@ button { cursor: pointer; border: none; font-family: inherit; }
 }
 .shift-group h3 { font-size: 15px; margin-bottom: 8px; border-bottom: 2px solid var(--yellow); padding-bottom: 4px; display: inline-block; }
 .shift-group ul { list-style: none; }
-.shift-group li { font-size: 14px; padding: 4px 0; border-bottom: 1px solid var(--gray-100); }
-.shift-group li:last-child { border-bottom: none; }
+.shift-entry {
+  font-size: 14px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--gray-100);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.shift-entry:last-child { border-bottom: none; }
+.shift-entry span { flex: 1; }
 
 .optimize-btn {
   width: 100%;
@@ -816,6 +851,67 @@ button { cursor: pointer; border: none; font-family: inherit; }
 }
 .status-badge.approved { background: #C8E6C9; color: #2E7D32; }
 .status-badge.rejected { background: #FFCDD2; color: #C62828; }
+
+/* Notification cards */
+.notification-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  border-left: 3px solid transparent;
+}
+.notification-card.unread { border-left-color: var(--yellow); background: #FFFDE7; }
+.notification-card.read { opacity: 0.7; }
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.notification-header p { flex: 1; }
+.btn-notif-delete {
+  background: none;
+  color: var(--gray-500);
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+.btn-notif-delete:hover { color: #e53935; }
+.notification-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+.notification-footer small { color: var(--gray-500); font-size: 12px; }
+
+/* Invite section */
+.invite-section { margin-bottom: 16px; }
+.invite-btn {
+  width: 100%;
+  background: var(--yellow);
+  color: var(--black);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.invite-btn:disabled { opacity: 0.5; }
+.invite-code-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFF9C4;
+  border: 2px solid var(--yellow);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 10px;
+  font-size: 18px;
+}
 
 /* Worker cards */
 .worker-card {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import AddressInput from '../components/AddressInput'
+import DateSlider from '../components/DateSlider'
 import { geocodeAddress } from '../utils/api'
 
 const SHIFT_TIMES = ['20:00', '21:00', '21:15', '22:00', '22:15', '23:00']
@@ -15,12 +16,7 @@ export default function WorkerPage() {
   const [addressMsg, setAddressMsg] = useState('')
   const [newAddress, setNewAddress] = useState('')
 
-  // Ближайшие 7 дней для выбора
-  const dates = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
-    return d.toISOString().split('T')[0]
-  })
+  // (даты берутся из DateSlider)
 
   const loadProfile = useCallback(async () => {
     const res = await authFetch('/api/users/me')
@@ -35,17 +31,31 @@ export default function WorkerPage() {
   useEffect(() => { loadProfile() }, [loadProfile])
   useEffect(() => { loadShifts() }, [loadShifts])
 
-  // Записаться / отписаться от смены
-  async function toggleShift(time) {
+  const [shiftMsg, setShiftMsg] = useState('')
+
+  // Выбрать время смены (одно на день) или отменить
+  async function selectShift(time) {
     setLoading(true)
-    const existing = myShifts.find(s => s.shift_time === time)
-    if (existing) {
-      await authFetch(`/api/shifts/${existing.id}`, { method: 'DELETE' })
+    setShiftMsg('')
+    const current = myShifts[0] // максимум одна запись на день
+
+    if (current?.shift_time === time) {
+      // Нажал на уже выбранное — отменяем
+      await authFetch(`/api/shifts/${current.id}`, { method: 'DELETE' })
     } else {
-      await authFetch('/api/shifts', {
+      const res = await authFetch('/api/shifts', {
         method: 'POST',
         body: JSON.stringify({ date: selectedDate, time }),
       })
+      if (res?.ok) {
+        const data = await res.json()
+        if (data.requested) {
+          setShiftMsg(`Запрос на перенос ${data.from} → ${data.to} отправлен администратору`)
+        }
+      } else {
+        const data = await res?.json()
+        setShiftMsg(data?.error || 'Ошибка')
+      }
     }
     await loadShifts()
     setLoading(false)
@@ -122,26 +132,16 @@ export default function WorkerPage() {
       <section className="shifts-section">
         <h2>Запись на смены</h2>
 
-        <div className="date-picker">
-          {dates.map(d => (
-            <button
-              key={d}
-              className={`date-btn ${d === selectedDate ? 'active' : ''}`}
-              onClick={() => setSelectedDate(d)}
-            >
-              {formatDate(d)}
-            </button>
-          ))}
-        </div>
+        <DateSlider selected={selectedDate} onChange={setSelectedDate} />
 
         <div className="shift-times">
           {SHIFT_TIMES.map(time => {
-            const isActive = myShifts.some(s => s.shift_time === time)
+            const isActive = myShifts[0]?.shift_time === time
             return (
               <button
                 key={time}
                 className={`shift-btn ${isActive ? 'active' : ''}`}
-                onClick={() => toggleShift(time)}
+                onClick={() => selectShift(time)}
                 disabled={loading || (!profile?.home_address && !isActive)}
               >
                 {time} {isActive ? '✓' : ''}
@@ -149,6 +149,8 @@ export default function WorkerPage() {
             )
           })}
         </div>
+
+        {shiftMsg && <p className="address-msg">{shiftMsg}</p>}
 
         {!profile?.home_address && (
           <p className="hint">Укажите домашний адрес, чтобы записываться на смены</p>
@@ -160,10 +162,4 @@ export default function WorkerPage() {
 
 function todayStr() {
   return new Date().toISOString().split('T')[0]
-}
-
-function formatDate(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00')
-  const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
-  return `${days[d.getDay()]} ${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`
 }

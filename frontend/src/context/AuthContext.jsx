@@ -31,11 +31,11 @@ export function AuthProvider({ children }) {
     return res
   }
 
-  async function register(phone, name, pin) {
+  async function register(phone, name, pin, inviteCode) {
     const res = await fetch(`${BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, name, pin }),
+      body: JSON.stringify({ phone, name, pin, inviteCode }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error)

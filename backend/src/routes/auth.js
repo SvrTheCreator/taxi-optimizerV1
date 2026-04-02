@@ -1,11 +1,12 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import supabase from '../db/supabase.js'
-import { createToken } from '../auth.js'
+import { createToken, authMiddleware, adminOnly } from '../auth.js'
 
 const router = Router()
 
-// Телефон админа — задаётся через env, по умолчанию номер жены
+// Телефон админа — задаётся через env
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '79996958294'
 
 // Нормализуем телефон: 89991234567 → 79991234567
@@ -17,9 +18,20 @@ function normalizePhone(phone) {
   return digits
 }
 
-// POST /api/auth/register — регистрация нового пользователя
+// Генерация 4-символьного кода (буквы + цифры, без путаницы O/0, I/1)
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = ''
+  const bytes = crypto.randomBytes(4)
+  for (let i = 0; i < 4; i++) {
+    code += chars[bytes[i] % chars.length]
+  }
+  return code
+}
+
+// POST /api/auth/register — регистрация (нужен инвайт-код, кроме админа)
 router.post('/register', async (req, res) => {
-  const { phone, name, pin } = req.body
+  const { phone, name, pin, inviteCode } = req.body
 
   if (!phone || !name || !pin) {
     return res.status(400).json({ error: 'Нужны phone, name и pin' })
@@ -32,6 +44,28 @@ router.post('/register', async (req, res) => {
   const normalizedPhone = normalizePhone(phone)
   if (normalizedPhone.length !== 11) {
     return res.status(400).json({ error: 'Некорректный номер телефона' })
+  }
+
+  const isAdmin = normalizedPhone === normalizePhone(ADMIN_PHONE)
+
+  // Работнику нужен инвайт-код, админу — нет
+  let invite = null
+  if (!isAdmin) {
+    if (!inviteCode) {
+      return res.status(400).json({ error: 'Нужен код приглашения' })
+    }
+
+    const { data } = await supabase
+      .from('invite_codes')
+      .select('*')
+      .eq('code', inviteCode.toUpperCase())
+      .is('used_by', null)
+      .single()
+
+    if (!data) {
+      return res.status(400).json({ error: 'Неверный или использованный код' })
+    }
+    invite = data
   }
 
   // Проверяем что телефон не занят
@@ -47,9 +81,7 @@ router.post('/register', async (req, res) => {
 
   // Хэшируем ПИН
   const pinHash = await bcrypt.hash(pin, 10)
-
-  // Определяем роль: если телефон совпадает с ADMIN_PHONE → админ
-  const role = normalizedPhone === normalizePhone(ADMIN_PHONE) ? 'admin' : 'worker'
+  const role = isAdmin ? 'admin' : 'worker'
 
   const { data: user, error } = await supabase
     .from('users')
@@ -59,6 +91,14 @@ router.post('/register', async (req, res) => {
 
   if (error) {
     return res.status(500).json({ error: 'Ошибка регистрации: ' + error.message })
+  }
+
+  // Помечаем инвайт-код как использованный
+  if (invite) {
+    await supabase
+      .from('invite_codes')
+      .update({ used_by: user.id, used_at: new Date().toISOString() })
+      .eq('id', invite.id)
   }
 
   const token = await createToken(user)
@@ -92,6 +132,35 @@ router.post('/login', async (req, res) => {
 
   const token = await createToken(user)
   res.json({ token, user: { id: user.id, phone: user.phone, name: user.name, role: user.role } })
+})
+
+// POST /api/auth/invite — сгенерировать инвайт-код (только админ)
+router.post('/invite', authMiddleware, adminOnly, async (req, res) => {
+  const code = generateCode()
+
+  const { data, error } = await supabase
+    .from('invite_codes')
+    .insert({ code, created_by: req.user.userId })
+    .select()
+    .single()
+
+  if (error) {
+    return res.status(500).json({ error: error.message })
+  }
+
+  res.json({ code: data.code })
+})
+
+// GET /api/auth/invites — список кодов (только админ)
+router.get('/invites', authMiddleware, adminOnly, async (req, res) => {
+  const { data, error } = await supabase
+    .from('invite_codes')
+    .select('code, created_at, used_by, used_at, users:used_by(name, phone)')
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (error) return res.status(500).json({ error: error.message })
+  res.json(data)
 })
 
 export default router

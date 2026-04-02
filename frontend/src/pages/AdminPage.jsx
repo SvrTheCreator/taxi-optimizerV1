@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useApp } from '../context/AppContext'
+import DateSlider from '../components/DateSlider'
 import { optimize } from '../utils/optimizer'
 
 const WORK_COORDS = { lat: 47.2358, lon: 39.7137 }
@@ -17,12 +18,11 @@ export default function AdminPage() {
   const [tab, setTab] = useState('shifts') // 'shifts' | 'requests' | 'workers'
   const [loading, setLoading] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
+  const [inviteCode, setInviteCode] = useState(null)
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [notifications, setNotifications] = useState([])
 
-  const dates = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
-    return d.toISOString().split('T')[0]
-  })
+  // (даты берутся из DateSlider)
 
   const loadShifts = useCallback(async () => {
     setLoading(true)
@@ -41,7 +41,13 @@ export default function AdminPage() {
     if (res?.ok) setWorkers(await res.json())
   }, [authFetch])
 
+  const loadNotifications = useCallback(async () => {
+    const res = await authFetch('/api/notifications')
+    if (res?.ok) setNotifications(await res.json())
+  }, [authFetch])
+
   useEffect(() => { loadShifts() }, [loadShifts])
+  useEffect(() => { loadNotifications() }, [loadNotifications])
   useEffect(() => {
     if (tab === 'requests') loadRequests()
     if (tab === 'workers') loadWorkers()
@@ -82,6 +88,17 @@ export default function AdminPage() {
     loadRequests()
   }
 
+  // Сгенерировать инвайт-код
+  async function generateInvite() {
+    setInviteLoading(true)
+    const res = await authFetch('/api/auth/invite', { method: 'POST' })
+    if (res?.ok) {
+      const data = await res.json()
+      setInviteCode(data.code)
+    }
+    setInviteLoading(false)
+  }
+
   // Удалить работника
   async function handleDeleteWorker(id, name) {
     if (!confirm(`Удалить ${name}?`)) return
@@ -90,6 +107,12 @@ export default function AdminPage() {
   }
 
   const pendingCount = requests.filter(r => r.status === 'pending').length
+  const unreadCount = notifications.filter(n => !n.is_read).length
+
+  async function markAllRead() {
+    await authFetch('/api/notifications/read-all', { method: 'POST' })
+    loadNotifications()
+  }
 
   return (
     <div className="admin-page">
@@ -103,28 +126,21 @@ export default function AdminPage() {
         <button className={tab === 'shifts' ? 'active' : ''} onClick={() => setTab('shifts')}>
           Смены
         </button>
-        <button className={tab === 'requests' ? 'active' : ''} onClick={() => setTab('requests')}>
-          Заявки {pendingCount > 0 && <span className="badge">{pendingCount}</span>}
+        <button className={tab === 'notifications' ? 'active' : ''} onClick={() => setTab('notifications')}>
+          Переносы {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
         </button>
         <button className={tab === 'workers' ? 'active' : ''} onClick={() => setTab('workers')}>
           Работники
+        </button>
+        <button className={tab === 'requests' ? 'active' : ''} onClick={() => setTab('requests')}>
+          Заявки {pendingCount > 0 && <span className="badge">{pendingCount}</span>}
         </button>
       </nav>
 
       {/* Таб: Смены */}
       {tab === 'shifts' && (
         <section>
-          <div className="date-picker">
-            {dates.map(d => (
-              <button
-                key={d}
-                className={`date-btn ${d === selectedDate ? 'active' : ''}`}
-                onClick={() => setSelectedDate(d)}
-              >
-                {formatDate(d)}
-              </button>
-            ))}
-          </div>
+          <DateSlider selected={selectedDate} onChange={setSelectedDate} />
 
           {loading ? <p>Загрузка...</p> : (
             <>
@@ -133,8 +149,17 @@ export default function AdminPage() {
                   <h3>{time} ({shiftsByTime[time].length} чел.)</h3>
                   <ul>
                     {shiftsByTime[time].map(s => (
-                      <li key={s.id}>
-                        {s.users?.name} — {s.users?.home_address || 'адрес не указан'}
+                      <li key={s.id} className="shift-entry">
+                        <span>{s.users?.name} — {s.users?.home_address || 'адрес не указан'}</span>
+                        <button
+                          className="btn-small btn-danger"
+                          onClick={async () => {
+                            await authFetch(`/api/shifts/${s.id}`, { method: 'DELETE' })
+                            loadShifts()
+                          }}
+                        >
+                          Убрать
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -195,6 +220,24 @@ export default function AdminPage() {
       {tab === 'workers' && (
         <section>
           <h2>Работники ({workers.length})</h2>
+
+          <div className="invite-section">
+            <button className="invite-btn" onClick={generateInvite} disabled={inviteLoading}>
+              {inviteLoading ? 'Генерируем...' : 'Пригласить работника'}
+            </button>
+            {inviteCode && (
+              <div className="invite-code-card">
+                <span>Код: <strong>{inviteCode}</strong></span>
+                <button
+                  className="btn-small"
+                  onClick={() => { navigator.clipboard.writeText(inviteCode) }}
+                >
+                  Копировать
+                </button>
+              </div>
+            )}
+          </div>
+
           {workers.map(w => (
             <div key={w.id} className="worker-card">
               <div>
@@ -213,16 +256,73 @@ export default function AdminPage() {
           ))}
         </section>
       )}
+
+      {/* Таб: Переносы */}
+      {tab === 'notifications' && (
+        <section>
+          <h2>Запросы на перенос</h2>
+          {notifications.length === 0 && <p className="hint">Запросов нет</p>}
+          {notifications.map(n => {
+            const match = n.message.match(/просит перенести (\d{2})\.(\d{2})\.(\d{4}): .+ → (\S+)/)
+            const isPending = n.status === 'pending' && match
+
+            return (
+              <div key={n.id} className={`notification-card ${isPending ? 'unread' : 'read'}`}>
+                <div className="notification-header">
+                  <p>{n.message}</p>
+                  <button
+                    className="btn-notif-delete"
+                    onClick={async () => {
+                      await authFetch(`/api/notifications/${n.id}`, { method: 'DELETE' })
+                      loadNotifications()
+                    }}
+                    title="Удалить"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="notification-footer">
+                  <small>{new Date(n.created_at).toLocaleString('ru')}</small>
+                  {n.status === 'approved' && <span className="status-badge approved">Принято</span>}
+                  {n.status === 'rejected' && <span className="status-badge rejected">Отклонено</span>}
+                </div>
+                {isPending && (
+                  <div className="request-actions" style={{ marginTop: 8 }}>
+                    <button className="btn-approve" onClick={async () => {
+                      await authFetch('/api/shifts/approve-transfer', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          userId: n.user_id,
+                          date: `${match[3]}-${match[2]}-${match[1]}`,
+                          newTime: match[4],
+                          notificationId: n.id,
+                        }),
+                      })
+                      loadNotifications()
+                      loadShifts()
+                    }}>
+                      Утвердить
+                    </button>
+                    <button className="btn-reject" onClick={async () => {
+                      await authFetch('/api/shifts/reject-transfer', {
+                        method: 'POST',
+                        body: JSON.stringify({ notificationId: n.id }),
+                      })
+                      loadNotifications()
+                    }}>
+                      Отклонить
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </section>
+      )}
     </div>
   )
 }
 
 function todayStr() {
   return new Date().toISOString().split('T')[0]
-}
-
-function formatDate(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00')
-  const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
-  return `${days[d.getDay()]} ${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`
 }
