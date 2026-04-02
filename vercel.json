@@ -3,11 +3,12 @@
   "outputDirectory": "public",
   "framework": null,
   "functions": {
-    "api/**/*.js": {
+    "api/index.js": {
       "includeFiles": "backend/src/**"
     }
   },
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
