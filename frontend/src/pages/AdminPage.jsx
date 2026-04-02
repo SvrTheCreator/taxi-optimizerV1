@@ -53,6 +53,12 @@ export default function AdminPage() {
     if (tab === 'workers') loadWorkers()
   }, [tab, loadRequests, loadWorkers])
 
+  // Автообновление каждые 15 секунд
+  useEffect(() => {
+    const interval = setInterval(() => { loadShifts(); loadNotifications(); loadRequests() }, 15000)
+    return () => clearInterval(interval)
+  }, [loadShifts, loadNotifications, loadRequests])
+
   // Группируем смены по времени
   const shiftsByTime = {}
   for (const s of shifts) {

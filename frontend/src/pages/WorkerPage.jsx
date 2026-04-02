@@ -31,6 +31,12 @@ export default function WorkerPage() {
   useEffect(() => { loadProfile() }, [loadProfile])
   useEffect(() => { loadShifts() }, [loadShifts])
 
+  // Автообновление каждые 15 секунд
+  useEffect(() => {
+    const interval = setInterval(() => { loadShifts(); loadProfile() }, 15000)
+    return () => clearInterval(interval)
+  }, [loadShifts, loadProfile])
+
   const [shiftMsg, setShiftMsg] = useState('')
 
   // Выбрать время смены (одно на день) или отменить
@@ -61,23 +67,41 @@ export default function WorkerPage() {
     setLoading(false)
   }
 
-  // Подать заявку на смену адреса
-  async function submitAddressRequest() {
+  // Сохранить или подать заявку на смену адреса
+  async function submitAddress() {
     if (!newAddress) return
     setAddressLoading(true)
     setAddressMsg('')
     try {
       const coords = await geocodeAddress(newAddress)
-      const res = await authFetch('/api/address-requests', {
-        method: 'POST',
-        body: JSON.stringify({ address: newAddress, lat: coords.lat, lon: coords.lon }),
-      })
-      if (res?.ok) {
-        setAddressMsg('Заявка отправлена! Ожидайте подтверждения.')
-        setNewAddress('')
+
+      if (!hasAddress) {
+        // Первый адрес — сохраняем напрямую через заявку с автоутверждением
+        const res = await authFetch('/api/address-requests', {
+          method: 'POST',
+          body: JSON.stringify({ address: newAddress, lat: coords.lat, lon: coords.lon, autoApprove: true }),
+        })
+        if (res?.ok) {
+          setAddressMsg('Адрес сохранён!')
+          setNewAddress('')
+          loadProfile()
+        } else {
+          const data = await res?.json()
+          setAddressMsg(data?.error || 'Ошибка')
+        }
       } else {
-        const data = await res?.json()
-        setAddressMsg(data?.error || 'Ошибка')
+        // Смена адреса — через заявку админу
+        const res = await authFetch('/api/address-requests', {
+          method: 'POST',
+          body: JSON.stringify({ address: newAddress, lat: coords.lat, lon: coords.lon }),
+        })
+        if (res?.ok) {
+          setAddressMsg('Заявка отправлена! Ожидайте подтверждения.')
+          setNewAddress('')
+        } else {
+          const data = await res?.json()
+          setAddressMsg(data?.error || 'Ошибка')
+        }
       }
     } catch (err) {
       setAddressMsg('Ошибка геокодирования: ' + err.message)
@@ -85,8 +109,9 @@ export default function WorkerPage() {
     setAddressLoading(false)
   }
 
-  // Можно ли менять адрес (раз в 30 дней)
-  const canChangeAddress = !profile?.home_updated ||
+  // Первый ввод адреса — всегда можно. Смена — раз в 30 дней через заявку.
+  const hasAddress = !!profile?.home_address
+  const canChangeAddress = !hasAddress || !profile?.home_updated ||
     (Date.now() - new Date(profile.home_updated).getTime()) > 30 * 24 * 60 * 60 * 1000
 
   const nextChangeDate = profile?.home_updated
@@ -116,8 +141,8 @@ export default function WorkerPage() {
               onChange={setNewAddress}
               placeholder="Новый домашний адрес"
             />
-            <button onClick={submitAddressRequest} disabled={addressLoading || !newAddress}>
-              {addressLoading ? 'Отправляем...' : 'Сменить адрес'}
+            <button onClick={submitAddress} disabled={addressLoading || !newAddress}>
+              {addressLoading ? 'Сохраняем...' : (hasAddress ? 'Сменить адрес' : 'Сохранить адрес')}
             </button>
             {addressMsg && <p className="address-msg">{addressMsg}</p>}
           </div>

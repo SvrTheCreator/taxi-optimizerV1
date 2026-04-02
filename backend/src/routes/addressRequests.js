@@ -6,10 +6,32 @@ const router = Router()
 router.use(authMiddleware)
 
 // POST /api/address-requests — подать заявку на смену адреса
+// autoApprove: true — для первого адреса (сразу сохраняем, без одобрения)
 router.post('/', async (req, res) => {
-  const { address, lat, lon } = req.body
+  const { address, lat, lon, autoApprove } = req.body
   if (!address || lat == null || lon == null) {
     return res.status(400).json({ error: 'Нужны address, lat и lon' })
+  }
+
+  // Если autoApprove — сразу записываем адрес пользователю
+  if (autoApprove) {
+    const { data: user } = await supabase
+      .from('users')
+      .select('home_address')
+      .eq('id', req.user.userId)
+      .single()
+
+    // autoApprove только если у юзера ещё нет адреса
+    if (user?.home_address) {
+      return res.status(400).json({ error: 'Адрес уже установлен, используйте заявку' })
+    }
+
+    await supabase
+      .from('users')
+      .update({ home_address: address, home_lat: lat, home_lon: lon, home_updated: new Date().toISOString() })
+      .eq('id', req.user.userId)
+
+    return res.json({ ok: true, autoApproved: true })
   }
 
   // Проверяем: нет ли уже pending заявки
