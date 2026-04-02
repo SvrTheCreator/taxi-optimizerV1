@@ -9,9 +9,12 @@ const router = Router()
 // Телефон админа — задаётся через env
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '79996958294'
 
-// Нормализуем телефон: 89991234567 → 79991234567
+// Нормализуем телефон: +79991234567 / 89991234567 / 79991234567 → 79991234567
 function normalizePhone(phone) {
-  const digits = phone.replace(/\D/g, '')
+  let cleaned = phone.replace(/[\s\-()]/g, '')
+  // Убираем ведущий +
+  if (cleaned.startsWith('+')) cleaned = cleaned.slice(1)
+  const digits = cleaned.replace(/\D/g, '')
   if (digits.startsWith('8') && digits.length === 11) {
     return '7' + digits.slice(1)
   }

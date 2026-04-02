@@ -9,6 +9,16 @@ import { geocodeAddress } from '../utils/api'
 
 const WORK_COORDS = { lat: 47.2358, lon: 39.7137 }
 
+// Форматирование телефона: 79508641767 → +7 950 864 17 67
+function formatPhone(phone) {
+  if (!phone) return ''
+  const digits = String(phone).replace(/\D/g, '')
+  if (digits.length === 11 && digits.startsWith('7')) {
+    return `+7 ${digits.slice(1,4)} ${digits.slice(4,7)} ${digits.slice(7,9)} ${digits.slice(9)}`
+  }
+  return '+' + digits
+}
+
 export default function AdminPage() {
   const { user, authFetch, logout } = useAuth()
   const { dispatch } = useApp()
@@ -105,6 +115,12 @@ export default function AdminPage() {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     })
+    loadRequests()
+  }
+
+  // Удалить заявку
+  async function handleDeleteRequest(id) {
+    await authFetch(`/api/address-requests/${id}`, { method: 'DELETE' })
     loadRequests()
   }
 
@@ -282,12 +298,21 @@ export default function AdminPage() {
           {requests.length === 0 && <p className="hint">Заявок нет</p>}
           {requests.map(r => (
             <div key={r.id} className={`request-card ${r.status}`}>
-              <div className="request-info">
-                <strong>{r.users?.name}</strong> ({r.users?.phone})
-                <br />
-                <span className="old-addr">Было: {r.users?.home_address || '—'}</span>
-                <br />
-                <span className="new-addr">Новый: {r.new_address}</span>
+              <div className="request-header">
+                <div className="request-info">
+                  <strong>{r.users?.name}</strong> ({formatPhone(r.users?.phone)})
+                  <br />
+                  <span className="old-addr">Было: {r.users?.home_address || '—'}</span>
+                  <br />
+                  <span className="new-addr">Новый: {r.new_address}</span>
+                </div>
+                <button
+                  className="btn-notif-delete"
+                  onClick={() => handleDeleteRequest(r.id)}
+                  title="Удалить"
+                >
+                  ×
+                </button>
               </div>
               {r.status === 'pending' && (
                 <div className="request-actions">
@@ -334,7 +359,7 @@ export default function AdminPage() {
           {workers.map(w => (
             <div key={w.id} className="worker-card">
               <div>
-                <strong>{w.name}</strong> ({w.phone})
+                <strong>{w.name}</strong> ({formatPhone(w.phone)})
                 <br />
                 <span>{w.home_address || 'адрес не указан'}</span>
                 <br />

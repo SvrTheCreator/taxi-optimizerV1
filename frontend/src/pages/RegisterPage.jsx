@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 
 export default function RegisterPage({ onSwitch }) {
   const { register } = useAuth()
-  const [phone, setPhone] = useState('')
+  const [phone, setPhone] = useState('+7')
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
   const [inviteCode, setInviteCode] = useState('')
@@ -14,7 +14,8 @@ export default function RegisterPage({ onSwitch }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
-    if (phone.length !== 11) {
+    const phoneDigits = phone.replace(/\D/g, '')
+    if (phoneDigits.length !== 11) {
       setError('Номер телефона должен быть 11 цифр')
       return
     }
@@ -50,10 +51,15 @@ export default function RegisterPage({ onSwitch }) {
           Телефон
           <input
             type="tel"
-            placeholder="89991234567"
+            placeholder="+7 999 123 45 67"
             value={phone}
-            onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
-            maxLength={11}
+            onChange={e => {
+              let val = e.target.value
+              if (!val.startsWith('+7')) val = '+7'
+              const digits = val.slice(2).replace(/\D/g, '').slice(0, 10)
+              setPhone('+7' + digits)
+            }}
+            maxLength={12}
             required
           />
         </label>

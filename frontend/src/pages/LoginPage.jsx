@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage({ onSwitch }) {
   const { login } = useAuth()
-  const [phone, setPhone] = useState('')
+  const [phone, setPhone] = useState('+7')
   const [pin, setPin] = useState('')
   const [showPin, setShowPin] = useState(false)
   const [error, setError] = useState('')
@@ -30,10 +30,17 @@ export default function LoginPage({ onSwitch }) {
           Телефон
           <input
             type="tel"
-            placeholder="89991234567"
+            placeholder="+7 999 123 45 67"
             value={phone}
-            onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
-            maxLength={11}
+            onChange={e => {
+              let val = e.target.value
+              // Всегда начинаем с +7
+              if (!val.startsWith('+7')) val = '+7'
+              // Оставляем только +7 и цифры после
+              const digits = val.slice(2).replace(/\D/g, '').slice(0, 10)
+              setPhone('+7' + digits)
+            }}
+            maxLength={12}
             required
           />
         </label>

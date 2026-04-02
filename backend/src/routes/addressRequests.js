@@ -122,4 +122,15 @@ router.patch('/:id', adminOnly, async (req, res) => {
   res.json({ ok: true, status })
 })
 
+// DELETE /api/address-requests/:id — удалить заявку (только админ)
+router.delete('/:id', adminOnly, async (req, res) => {
+  const { error } = await supabase
+    .from('address_requests')
+    .delete()
+    .eq('id', req.params.id)
+
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ ok: true })
+})
+
 export default router
