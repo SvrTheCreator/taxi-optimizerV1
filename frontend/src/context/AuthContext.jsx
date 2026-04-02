@@ -24,8 +24,9 @@ export function AuthProvider({ children }) {
 
   // Хелпер: fetch с авторизацией
   async function authFetch(url, options = {}) {
-    const headers = { ...options.headers, 'Content-Type': 'application/json' }
+    const headers = { ...options.headers }
     if (token) headers['Authorization'] = `Bearer ${token}`
+    if (options.body) headers['Content-Type'] = 'application/json'
     const res = await fetch(url, { ...options, headers })
     if (res.status === 401) { logout(); return null }
     return res

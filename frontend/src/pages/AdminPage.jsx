@@ -20,6 +20,7 @@ export default function AdminPage() {
   const [optimizing, setOptimizing] = useState(false)
   const [inviteCode, setInviteCode] = useState(null)
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(null) // id работника для подтверждения
   const [notifications, setNotifications] = useState([])
 
   // (даты берутся из DateSlider)
@@ -105,10 +106,14 @@ export default function AdminPage() {
     setInviteLoading(false)
   }
 
-  // Удалить работника
-  async function handleDeleteWorker(id, name) {
-    if (!confirm(`Удалить ${name}?`)) return
+  // Удалить работника (два нажатия: первое — подтвердить, второе — удалить)
+  async function handleDeleteWorker(id) {
+    if (confirmDelete !== id) {
+      setConfirmDelete(id)
+      return
+    }
     await authFetch(`/api/users/${id}`, { method: 'DELETE' })
+    setConfirmDelete(null)
     loadWorkers()
   }
 
@@ -254,8 +259,11 @@ export default function AdminPage() {
                 <small>Роль: {w.role}</small>
               </div>
               {w.role !== 'admin' && (
-                <button className="btn-small btn-danger" onClick={() => handleDeleteWorker(w.id, w.name)}>
-                  Удалить
+                <button
+                  className={`btn-small ${confirmDelete === w.id ? 'btn-danger-confirm' : 'btn-danger'}`}
+                  onClick={() => handleDeleteWorker(w.id)}
+                >
+                  {confirmDelete === w.id ? 'Точно удалить?' : 'Удалить'}
                 </button>
               )}
             </div>

@@ -663,6 +663,7 @@ button { cursor: pointer; border: none; font-family: inherit; }
   font-weight: 600;
 }
 .btn-danger { background: #FFCDD2; color: #C62828; }
+.btn-danger-confirm { background: #C62828; color: white; }
 
 .loading {
   text-align: center;
