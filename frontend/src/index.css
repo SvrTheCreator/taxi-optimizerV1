@@ -832,6 +832,12 @@ button { cursor: pointer; border: none; font-family: inherit; }
   cursor: pointer;
 }
 .temp-toggle input { width: 16px; height: 16px; accent-color: var(--yellow-dark); }
+.temp-toggle-disabled {
+  background: var(--gray-100);
+  color: var(--gray-500);
+  cursor: not-allowed;
+}
+.temp-toggle-disabled input { accent-color: var(--gray-500); }
 
 /* ======= ADMIN PAGE ======= */
 .admin-tabs {

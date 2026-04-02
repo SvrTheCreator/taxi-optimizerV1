@@ -39,6 +39,7 @@ export default function AdminPage() {
   const [addressLoading, setAddressLoading] = useState(false)
   const [addressMsg, setAddressMsg] = useState('')
   const [showAddressPopup, setShowAddressPopup] = useState(false)
+  const [showTaxiPopup, setShowTaxiPopup] = useState(false)
   const [myShift, setMyShift] = useState(null)
   const [shiftLoading, setShiftLoading] = useState(false)
 
@@ -223,20 +224,8 @@ export default function AdminPage() {
           {profile?.home_address && (
             <button
               className={`btn-icon ${myShift ? 'btn-icon-active' : ''}`}
-              onClick={async () => {
-                if (myShift) {
-                  // Уже записан — отменяем
-                  await authFetch(`/api/shifts/${myShift.id}`, { method: 'DELETE' })
-                } else {
-                  // Записываемся на 20:00 сегодня
-                  await authFetch('/api/shifts', {
-                    method: 'POST',
-                    body: JSON.stringify({ date: todayStr(), time: '20:00' }),
-                  })
-                }
-                loadShifts()
-              }}
-              title={myShift ? `Записан на ${myShift.shift_time} — нажми чтобы отменить` : 'Записаться на 20:00'}
+              onClick={() => setShowTaxiPopup(true)}
+              title={myShift ? `Записан на ${myShift.shift_time}` : 'Вызвать такси'}
             >
               <span>&#x1F696;</span>
             </button>
@@ -281,6 +270,59 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Попап вызова такси */}
+      {showTaxiPopup && (
+        <div className="popup-overlay" onClick={() => setShowTaxiPopup(false)}>
+          <div className="popup-card" onClick={e => e.stopPropagation()}>
+            <div className="popup-header">
+              <h2>Вызвать такси</h2>
+              <button className="btn-close" onClick={() => setShowTaxiPopup(false)}>×</button>
+            </div>
+            <p style={{ fontSize: 13, color: '#9E9E9E', marginBottom: 8 }}>
+              {profile?.home_address}
+            </p>
+            {myShift ? (
+              <div>
+                <p style={{ marginBottom: 10 }}>Вы записаны на <strong>{myShift.shift_time}</strong></p>
+                <button
+                  className="optimize-btn"
+                  style={{ background: '#FFCDD2', color: '#C62828' }}
+                  onClick={async () => {
+                    await authFetch(`/api/shifts/${myShift.id}`, { method: 'DELETE' })
+                    loadShifts()
+                    setShowTaxiPopup(false)
+                  }}
+                >
+                  Отменить поездку
+                </button>
+              </div>
+            ) : (
+              <div className="shift-times">
+                {SHIFT_TIMES.map(time => (
+                  <button
+                    key={time}
+                    className="shift-btn"
+                    disabled={shiftLoading}
+                    onClick={async () => {
+                      setShiftLoading(true)
+                      await authFetch('/api/shifts', {
+                        method: 'POST',
+                        body: JSON.stringify({ date: selectedDate, time }),
+                      })
+                      await loadShifts()
+                      setShiftLoading(false)
+                      setShowTaxiPopup(false)
+                    }}
+                  >
+                    {time}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Табы */}
       <nav className="admin-tabs">
         <button className={tab === 'shifts' ? 'active' : ''} onClick={() => setTab('shifts')}>
@@ -301,25 +343,6 @@ export default function AdminPage() {
       {tab === 'shifts' && (
         <section>
           <DateSlider selected={selectedDate} onChange={setSelectedDate} />
-
-          {/* Моя смена */}
-          {profile?.home_address && (
-            <div className="my-shift-row">
-              <span className="my-shift-label">Моя смена:</span>
-              <div className="my-shift-times">
-                {SHIFT_TIMES.map(time => (
-                  <button
-                    key={time}
-                    className={`my-shift-btn ${myShift?.shift_time === time ? 'active' : ''}`}
-                    onClick={() => selectMyShift(time)}
-                    disabled={shiftLoading}
-                  >
-                    {time}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {loading ? <p>Загрузка...</p> : (
             <>

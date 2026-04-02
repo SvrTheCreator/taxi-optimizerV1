@@ -240,14 +240,14 @@ export default function WorkerPage() {
         </div>
 
         {profile?.temp_address && myShifts[0] && (
-          <label className="temp-toggle">
+          <label className={`temp-toggle ${!canSetTemp && !useTemp ? 'temp-toggle-disabled' : ''}`}>
             <input
               type="checkbox"
               checked={useTemp}
+              disabled={!canSetTemp && !useTemp}
               onChange={async (e) => {
                 const val = e.target.checked
                 setUseTemp(val)
-                // Обновляем use_temp на сервере
                 if (myShifts[0]) {
                   await authFetch('/api/shifts', {
                     method: 'POST',
@@ -257,7 +257,10 @@ export default function WorkerPage() {
                 }
               }}
             />
-            Ехать по временному адресу ({profile.temp_address})
+            {!canSetTemp && !useTemp
+              ? `Временный адрес недоступен до следующего месяца`
+              : `Ехать по временному адресу (${profile.temp_address})`
+            }
           </label>
         )}
 
