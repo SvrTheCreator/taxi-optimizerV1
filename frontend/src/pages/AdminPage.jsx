@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useApp } from '../context/AppContext'
 import DateSlider from '../components/DateSlider'
+import AddressInput from '../components/AddressInput'
 import { optimize } from '../utils/optimizer'
+import { geocodeAddress } from '../utils/api'
 
 const WORK_COORDS = { lat: 47.2358, lon: 39.7137 }
 
@@ -20,8 +22,12 @@ export default function AdminPage() {
   const [optimizing, setOptimizing] = useState(false)
   const [inviteCode, setInviteCode] = useState(null)
   const [inviteLoading, setInviteLoading] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(null) // id работника для подтверждения
+  const [confirmDelete, setConfirmDelete] = useState(null)
   const [notifications, setNotifications] = useState([])
+  const [profile, setProfile] = useState(null)
+  const [newAddress, setNewAddress] = useState('')
+  const [addressLoading, setAddressLoading] = useState(false)
+  const [addressMsg, setAddressMsg] = useState('')
 
   // (даты берутся из DateSlider)
 
@@ -42,11 +48,17 @@ export default function AdminPage() {
     if (res?.ok) setWorkers(await res.json())
   }, [authFetch])
 
+  const loadProfile = useCallback(async () => {
+    const res = await authFetch('/api/users/me')
+    if (res?.ok) setProfile(await res.json())
+  }, [authFetch])
+
   const loadNotifications = useCallback(async () => {
     const res = await authFetch('/api/notifications')
     if (res?.ok) setNotifications(await res.json())
   }, [authFetch])
 
+  useEffect(() => { loadProfile() }, [loadProfile])
   useEffect(() => { loadShifts() }, [loadShifts])
   useEffect(() => { loadNotifications() }, [loadNotifications])
   useEffect(() => {
@@ -95,6 +107,37 @@ export default function AdminPage() {
     loadRequests()
   }
 
+  // Сохранить/сменить адрес админа
+  async function submitAdminAddress() {
+    if (!newAddress) return
+    setAddressLoading(true)
+    setAddressMsg('')
+    try {
+      const coords = await geocodeAddress(newAddress)
+      const res = await authFetch('/api/address-requests', {
+        method: 'POST',
+        body: JSON.stringify({ address: newAddress, lat: coords.lat, lon: coords.lon, autoApprove: true }),
+      })
+      if (res?.ok) {
+        setAddressMsg('Адрес сохранён!')
+        setNewAddress('')
+        loadProfile()
+      } else {
+        // Если autoApprove не сработал (адрес уже есть) — сохраняем напрямую
+        await authFetch('/api/users/me/address', {
+          method: 'PATCH',
+          body: JSON.stringify({ address: newAddress, lat: coords.lat, lon: coords.lon }),
+        })
+        setAddressMsg('Адрес обновлён!')
+        setNewAddress('')
+        loadProfile()
+      }
+    } catch (err) {
+      setAddressMsg('Ошибка: ' + err.message)
+    }
+    setAddressLoading(false)
+  }
+
   // Сгенерировать инвайт-код
   async function generateInvite() {
     setInviteLoading(true)
@@ -131,6 +174,27 @@ export default function AdminPage() {
         <h1>Админ: {user.name}</h1>
         <button onClick={logout} className="btn-small">Выйти</button>
       </header>
+
+      {/* Профиль админа */}
+      <section className="profile-section">
+        <h2>Мой адрес</h2>
+        {profile?.home_address ? (
+          <p className="current-address">{profile.home_address}</p>
+        ) : (
+          <p className="no-address">Адрес не указан</p>
+        )}
+        <div className="address-change">
+          <AddressInput
+            value={newAddress}
+            onChange={setNewAddress}
+            placeholder={profile?.home_address ? 'Новый адрес' : 'Введите домашний адрес'}
+          />
+          <button onClick={submitAdminAddress} disabled={addressLoading || !newAddress}>
+            {addressLoading ? 'Сохраняем...' : (profile?.home_address ? 'Сменить' : 'Сохранить')}
+          </button>
+          {addressMsg && <p className="address-msg">{addressMsg}</p>}
+        </div>
+      </section>
 
       {/* Табы */}
       <nav className="admin-tabs">
