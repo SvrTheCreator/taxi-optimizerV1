@@ -2,7 +2,6 @@
 // Паттерн: Debounce — не делаем запрос на каждую букву, ждём паузу 300мс
 
 import { useState, useEffect, useRef } from 'react'
-import { getAddressSuggestions } from '../utils/api'
 
 // Запрашиваем подсказки напрямую из Яндекс.Карт JS API (ymaps.suggest)
 // Это настоящий саджест как в Яндекс.Такси — работает с любым адресом в Ростове
@@ -46,18 +45,7 @@ export default function AddressInput({ value, onChange, placeholder, onPaste }) 
 
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
-      // Запрашиваем параллельно: историю (бэкенд) и Яндекс подсказки (JS API)
-      const [historyResults, yandexResults] = await Promise.all([
-        getAddressSuggestions(value).catch(() => []),
-        getYmapsSuggestions(value),
-      ])
-
-      // Объединяем: сначала история (часто используемые), потом Яндекс (без дублей)
-      const historySet = new Set(historyResults.map(r => r.raw.toLowerCase()))
-      const combined = [
-        ...historyResults,
-        ...yandexResults.filter(r => !historySet.has(r.raw.toLowerCase())),
-      ].slice(0, 7)
+      const combined = await getYmapsSuggestions(value)
 
       setSuggestions(combined)
       setShowDropdown(combined.length > 0)
@@ -89,8 +77,6 @@ export default function AddressInput({ value, onChange, placeholder, onPaste }) 
           {suggestions.map((s, i) => (
             <li key={i} onMouseDown={() => handleSelect(s)}>
               <span className="suggest-text">{s.raw}</span>
-              {s.use_count && <span className="use-count">×{s.use_count}</span>}
-              {s.fromYandex && <span className="suggest-badge">Яндекс</span>}
             </li>
           ))}
         </ul>
