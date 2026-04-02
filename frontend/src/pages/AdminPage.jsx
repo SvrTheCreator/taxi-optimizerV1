@@ -220,6 +220,27 @@ export default function AdminPage() {
       <header className="page-header">
         <h1>Админ: {user.name}</h1>
         <div className="header-actions">
+          {profile?.home_address && (
+            <button
+              className={`btn-icon ${myShift ? 'btn-icon-active' : ''}`}
+              onClick={async () => {
+                if (myShift) {
+                  // Уже записан — отменяем
+                  await authFetch(`/api/shifts/${myShift.id}`, { method: 'DELETE' })
+                } else {
+                  // Записываемся на 20:00 сегодня
+                  await authFetch('/api/shifts', {
+                    method: 'POST',
+                    body: JSON.stringify({ date: todayStr(), time: '20:00' }),
+                  })
+                }
+                loadShifts()
+              }}
+              title={myShift ? `Записан на ${myShift.shift_time} — нажми чтобы отменить` : 'Записаться на 20:00'}
+            >
+              <span>&#x1F696;</span>
+            </button>
+          )}
           <button
             className="btn-icon"
             onClick={() => setShowAddressPopup(true)}
@@ -308,7 +329,10 @@ export default function AdminPage() {
                   <ul>
                     {shiftsByTime[time].map(s => (
                       <li key={s.id} className="shift-entry">
-                        <span>{s.users?.name} — {s.users?.home_address || 'адрес не указан'}</span>
+                        <span>
+                          {s.users?.name} — {s.display_address || s.users?.home_address || 'адрес не указан'}
+                          {s.use_temp && <span className="temp-badge">врем.</span>}
+                        </span>
                         <button
                           className="btn-small btn-danger"
                           onClick={async () => {

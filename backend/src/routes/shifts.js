@@ -14,12 +14,17 @@ router.get('/', async (req, res) => {
   if (req.user.role === 'admin') {
     const { data, error } = await supabase
       .from('shift_entries')
-      .select('id, shift_time, user_id, users(name, phone, home_address, home_lat, home_lon)')
+      .select('id, shift_time, use_temp, user_id, users(name, phone, home_address, home_lat, home_lon, temp_address)')
       .eq('shift_date', date)
       .order('shift_time')
 
     if (error) return res.status(500).json({ error: error.message })
-    return res.json(data)
+    // Показываем актуальный адрес (временный или основной)
+    const enriched = data.map(s => ({
+      ...s,
+      display_address: (s.use_temp && s.users?.temp_address) ? s.users.temp_address : s.users?.home_address,
+    }))
+    return res.json(enriched)
   }
 
   // Работник — одна запись на день

@@ -689,6 +689,18 @@ button { cursor: pointer; border: none; font-family: inherit; }
   transition: background 0.15s;
 }
 .btn-icon:hover { background: var(--gray-200); }
+.btn-icon-active { background: var(--yellow); }
+.btn-icon-active:hover { background: var(--yellow-dark); }
+
+.temp-badge {
+  font-size: 10px;
+  background: #FFF9C4;
+  color: #F57F17;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 4px;
+  font-weight: 600;
+}
 
 /* Popup overlay */
 .popup-overlay {
