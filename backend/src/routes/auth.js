@@ -6,8 +6,8 @@ import { createToken, authMiddleware, adminOnly } from '../auth.js'
 
 const router = Router()
 
-// Телефон админа — задаётся через env
-const ADMIN_PHONE = process.env.ADMIN_PHONE || '79996958294'
+// Телефоны админов — через запятую в env
+const ADMIN_PHONES = (process.env.ADMIN_PHONE || '79996958294').split(',').map(p => p.trim())
 
 // Нормализуем телефон: +79991234567 / 89991234567 / 79991234567 → 79991234567
 function normalizePhone(phone) {
@@ -49,7 +49,7 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'Некорректный номер телефона' })
   }
 
-  const isAdmin = normalizedPhone === normalizePhone(ADMIN_PHONE)
+  const isAdmin = ADMIN_PHONES.some(p => normalizePhone(p) === normalizedPhone)
 
   // Работнику нужен инвайт-код, админу — нет
   let invite = null
