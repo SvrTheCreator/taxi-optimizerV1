@@ -10,8 +10,11 @@ function getYmapsSuggestions(value) {
   return new Promise(resolve => {
     if (!window.ymaps) return resolve([])
     window.ymaps.ready(() => {
+      // Ищем по Ростовской области (Ростов, Батайск, Азов, Новочеркасск и др.)
+      const hasCity = /ростов|батайск|азов|новочеркасск/i.test(value)
+      const query = hasCity ? value : `${value}, Ростовская область`
       window.ymaps
-        .suggest(`${value}, Ростов-на-Дону`, {
+        .suggest(query, {
           boundedBy: [[46.5, 38.5], [47.8, 41.5]],
           results: 6,
           types: 'geo',

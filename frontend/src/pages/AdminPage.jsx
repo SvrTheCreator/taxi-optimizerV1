@@ -31,11 +31,11 @@ export default function AdminPage() {
 
   // (даты берутся из DateSlider)
 
-  const loadShifts = useCallback(async () => {
-    setLoading(true)
+  const loadShifts = useCallback(async (silent) => {
+    if (!silent) setLoading(true)
     const res = await authFetch(`/api/shifts?date=${selectedDate}`)
     if (res?.ok) setShifts(await res.json())
-    setLoading(false)
+    if (!silent) setLoading(false)
   }, [authFetch, selectedDate])
 
   const loadRequests = useCallback(async () => {
@@ -66,9 +66,9 @@ export default function AdminPage() {
     if (tab === 'workers') loadWorkers()
   }, [tab, loadRequests, loadWorkers])
 
-  // Автообновление каждые 15 секунд
+  // Автообновление каждые 15 секунд (silent — без мерцания)
   useEffect(() => {
-    const interval = setInterval(() => { loadShifts(); loadNotifications(); loadRequests() }, 15000)
+    const interval = setInterval(() => { loadShifts(true); loadNotifications(); loadRequests() }, 15000)
     return () => clearInterval(interval)
   }, [loadShifts, loadNotifications, loadRequests])
 

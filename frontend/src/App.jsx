@@ -12,7 +12,7 @@ function AppRoutes() {
   const { user, loading } = useAuth()
   const [isLogin, setIsLogin] = useState(true)
 
-  if (loading) return <div className="loading">Загрузка...</div>
+  if (loading) return null // не показываем ничего пока проверяем токен
 
   // Не авторизован — показываем логин/регистрацию
   if (!user) {
