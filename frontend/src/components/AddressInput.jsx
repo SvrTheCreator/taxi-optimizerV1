@@ -48,7 +48,7 @@ export default function AddressInput({ value, onChange, placeholder, onPaste }) 
     debounceRef.current = setTimeout(async () => {
       // Запрашиваем параллельно: историю (бэкенд) и Яндекс подсказки (JS API)
       const [historyResults, yandexResults] = await Promise.all([
-        getAddressSuggestions(value),
+        getAddressSuggestions(value).catch(() => []),
         getYmapsSuggestions(value),
       ])
 
@@ -57,7 +57,7 @@ export default function AddressInput({ value, onChange, placeholder, onPaste }) 
       const combined = [
         ...historyResults,
         ...yandexResults.filter(r => !historySet.has(r.raw.toLowerCase())),
-      ].slice(0, 7) // максимум 7 подсказок
+      ].slice(0, 7)
 
       setSuggestions(combined)
       setShowDropdown(combined.length > 0)
