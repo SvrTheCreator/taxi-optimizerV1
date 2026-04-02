@@ -9,7 +9,7 @@ router.use(authMiddleware)
 router.get('/me', async (req, res) => {
   const { data, error } = await supabase
     .from('users')
-    .select('id, phone, name, home_address, home_lat, home_lon, home_updated, role, created_at')
+    .select('id, phone, name, home_address, home_lat, home_lon, home_updated, temp_address, temp_lat, temp_lon, temp_used_at, role, created_at')
     .eq('id', req.user.userId)
     .single()
 
@@ -33,6 +33,46 @@ router.patch('/me/address', async (req, res) => {
     .eq('id', req.user.userId)
 
   if (error) return res.status(500).json({ error: error.message })
+  res.json({ ok: true })
+})
+
+// PATCH /api/users/me/temp-address — установить временный адрес (раз в месяц)
+router.patch('/me/temp-address', async (req, res) => {
+  const { address, lat, lon } = req.body
+  if (!address || lat == null || lon == null) {
+    return res.status(400).json({ error: 'Нужны address, lat и lon' })
+  }
+
+  // Проверяем: использовался ли временный адрес в этом месяце
+  const { data: user } = await supabase
+    .from('users')
+    .select('temp_used_at, name')
+    .eq('id', req.user.userId)
+    .single()
+
+  if (user?.temp_used_at) {
+    const lastUsed = new Date(user.temp_used_at)
+    const now = new Date()
+    if (lastUsed.getMonth() === now.getMonth() && lastUsed.getFullYear() === now.getFullYear()) {
+      return res.status(409).json({ error: 'Временный адрес уже использован в этом месяце' })
+    }
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update({ temp_address: address, temp_lat: lat, temp_lon: lon })
+    .eq('id', req.user.userId)
+
+  if (error) return res.status(500).json({ error: error.message })
+
+  // Уведомляем админа
+  await supabase.from('notifications').insert({
+    user_id: req.user.userId,
+    message: `${user?.name || 'Работник'} установил временный адрес: ${address}`,
+    is_read: false,
+    status: 'pending',
+  })
+
   res.json({ ok: true })
 })
 

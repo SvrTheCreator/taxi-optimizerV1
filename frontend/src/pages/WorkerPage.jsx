@@ -15,6 +15,10 @@ export default function WorkerPage() {
   const [addressLoading, setAddressLoading] = useState(false)
   const [addressMsg, setAddressMsg] = useState('')
   const [newAddress, setNewAddress] = useState('')
+  const [tempAddress, setTempAddress] = useState('')
+  const [tempMsg, setTempMsg] = useState('')
+  const [tempLoading, setTempLoading] = useState(false)
+  const [useTemp, setUseTemp] = useState(false)
 
   // (даты берутся из DateSlider)
 
@@ -109,6 +113,36 @@ export default function WorkerPage() {
     setAddressLoading(false)
   }
 
+  // Сохранить временный адрес
+  async function submitTempAddress() {
+    if (!tempAddress) return
+    setTempLoading(true)
+    setTempMsg('')
+    try {
+      const coords = await geocodeAddress(tempAddress)
+      const res = await authFetch('/api/users/me/temp-address', {
+        method: 'PATCH',
+        body: JSON.stringify({ address: tempAddress, lat: coords.lat, lon: coords.lon }),
+      })
+      if (res?.ok) {
+        setTempMsg('Временный адрес сохранён!')
+        setTempAddress('')
+        loadProfile()
+      } else {
+        const data = await res?.json()
+        setTempMsg(data?.error || 'Ошибка')
+      }
+    } catch (err) {
+      setTempMsg('Ошибка: ' + err.message)
+    }
+    setTempLoading(false)
+  }
+
+  // Можно ли установить временный адрес (раз в месяц)
+  const canSetTemp = !profile?.temp_used_at ||
+    new Date(profile.temp_used_at).getMonth() !== new Date().getMonth() ||
+    new Date(profile.temp_used_at).getFullYear() !== new Date().getFullYear()
+
   // Первый ввод адреса — всегда можно. Смена — раз в 30 дней через заявку.
   const hasAddress = !!profile?.home_address
   const canChangeAddress = !hasAddress || !profile?.home_updated ||
@@ -153,6 +187,36 @@ export default function WorkerPage() {
         )}
       </section>
 
+      {/* Временный адрес */}
+      {hasAddress && (
+        <section className="profile-section">
+          <h2>Временный адрес</h2>
+          <p className="hint" style={{ textAlign: 'left', padding: 0, marginBottom: 8 }}>
+            Один раз в месяц можно указать другой адрес для поездки
+          </p>
+          {profile?.temp_address && (
+            <p className="current-address">Текущий: {profile.temp_address}</p>
+          )}
+          {canSetTemp ? (
+            <div className="address-change">
+              <AddressInput
+                value={tempAddress}
+                onChange={setTempAddress}
+                placeholder="Адрес для разовой поездки"
+              />
+              <button onClick={submitTempAddress} disabled={tempLoading || !tempAddress}>
+                {tempLoading ? 'Сохраняем...' : 'Установить'}
+              </button>
+              {tempMsg && <p className="address-msg">{tempMsg}</p>}
+            </div>
+          ) : (
+            <p className="address-cooldown">
+              Временный адрес уже использован в этом месяце
+            </p>
+          )}
+        </section>
+      )}
+
       {/* Запись на смены */}
       <section className="shifts-section">
         <h2>Запись на смены</h2>
@@ -174,6 +238,28 @@ export default function WorkerPage() {
             )
           })}
         </div>
+
+        {profile?.temp_address && myShifts[0] && (
+          <label className="temp-toggle">
+            <input
+              type="checkbox"
+              checked={useTemp}
+              onChange={async (e) => {
+                const val = e.target.checked
+                setUseTemp(val)
+                // Обновляем use_temp на сервере
+                if (myShifts[0]) {
+                  await authFetch('/api/shifts', {
+                    method: 'POST',
+                    body: JSON.stringify({ date: selectedDate, time: myShifts[0].shift_time, useTemp: val }),
+                  })
+                  loadShifts()
+                }
+              }}
+            />
+            Ехать по временному адресу ({profile.temp_address})
+          </label>
+        )}
 
         {shiftMsg && <p className="address-msg">{shiftMsg}</p>}
 

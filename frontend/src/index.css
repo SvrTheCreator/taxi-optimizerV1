@@ -807,6 +807,20 @@ button { cursor: pointer; border: none; font-family: inherit; }
 .shift-btn.active { background: var(--yellow); color: var(--black); }
 .shift-btn:disabled { opacity: 0.4; }
 
+.temp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #FFF9C4;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.temp-toggle input { width: 16px; height: 16px; accent-color: var(--yellow-dark); }
+
 /* ======= ADMIN PAGE ======= */
 .admin-tabs {
   display: flex;

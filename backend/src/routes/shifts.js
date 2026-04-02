@@ -36,23 +36,48 @@ router.get('/', async (req, res) => {
 // POST /api/shifts — записаться на смену (одна на день)
 // Если уже есть запись на этот день — меняем время и уведомляем админа
 router.post('/', async (req, res) => {
-  const { date, time } = req.body
+  const { date, time, useTemp } = req.body
   if (!date || !time) return res.status(400).json({ error: 'Нужны date и time' })
 
   // Проверяем: есть ли уже запись на этот день
   const { data: existing } = await supabase
     .from('shift_entries')
-    .select('id, shift_time')
+    .select('id, shift_time, use_temp')
     .eq('user_id', req.user.userId)
     .eq('shift_date', date)
     .single()
 
   if (existing) {
-    if (existing.shift_time === time) {
-      return res.json(existing) // уже записан на это время
+    // Обновление use_temp без смены времени
+    if (existing.shift_time === time && useTemp !== undefined && existing.use_temp !== useTemp) {
+      const update = { use_temp: useTemp }
+      // При включении temp — отмечаем использование
+      if (useTemp) {
+        await supabase.from('users').update({ temp_used_at: new Date().toISOString() }).eq('id', req.user.userId)
+      }
+      const { data, error } = await supabase
+        .from('shift_entries').update(update).eq('id', existing.id).select().single()
+      if (error) return res.status(500).json({ error: error.message })
+      return res.json(data)
     }
 
-    // Уже есть смена — создаём запрос на перенос (не меняем сразу)
+    if (existing.shift_time === time) {
+      return res.json(existing)
+    }
+
+    // Админ меняет время напрямую
+    if (req.user.role === 'admin') {
+      const { data, error } = await supabase
+        .from('shift_entries')
+        .update({ shift_time: time, use_temp: useTemp || false })
+        .eq('id', existing.id)
+        .select()
+        .single()
+      if (error) return res.status(500).json({ error: error.message })
+      return res.json(data)
+    }
+
+    // Работник — запрос на перенос
     const [y, m, d] = date.split('-')
     const ruDate = `${d}.${m}.${y}`
 
@@ -62,7 +87,6 @@ router.post('/', async (req, res) => {
       .eq('id', req.user.userId)
       .single()
 
-    // Проверяем: нет ли уже pending запроса на эту дату
     const { data: pendingReq } = await supabase
       .from('notifications')
       .select('id')
@@ -159,7 +183,7 @@ router.get('/optimize-data', adminOnly, async (req, res) => {
 
   const { data, error } = await supabase
     .from('shift_entries')
-    .select('shift_time, users(name, home_address, home_lat, home_lon)')
+    .select('shift_time, use_temp, users(name, home_address, home_lat, home_lon, temp_address, temp_lat, temp_lon)')
     .eq('shift_date', date)
     .order('shift_time')
 
@@ -167,13 +191,16 @@ router.get('/optimize-data', adminOnly, async (req, res) => {
 
   const entries = data
     .filter(e => e.users?.home_lat && e.users?.home_lon)
-    .map((e, i) => ({
-      id: i + 1,
-      address: e.users.home_address,
-      time: e.shift_time,
-      lat: e.users.home_lat,
-      lon: e.users.home_lon,
-    }))
+    .map((e, i) => {
+      const useTemp = e.use_temp && e.users.temp_lat && e.users.temp_lon
+      return {
+        id: i + 1,
+        address: useTemp ? e.users.temp_address : e.users.home_address,
+        time: e.shift_time,
+        lat: useTemp ? e.users.temp_lat : e.users.home_lat,
+        lon: useTemp ? e.users.temp_lon : e.users.home_lon,
+      }
+    })
 
   res.json(entries)
 })
