@@ -481,10 +481,11 @@ export default function AdminPage() {
           {notifications.length === 0 && <p className="hint">Запросов нет</p>}
           {notifications.map(n => {
             const match = n.message.match(/просит перенести (\d{2})\.(\d{2})\.(\d{4}): .+ → (\S+)/)
-            const isPending = n.status === 'pending' && match
+            const isTransfer = n.status === 'pending' && match
+            const isUnread = n.status === 'pending'
 
             return (
-              <div key={n.id} className={`notification-card ${isPending ? 'unread' : 'read'}`}>
+              <div key={n.id} className={`notification-card ${isUnread ? 'unread' : 'read'}`}>
                 <div className="notification-header">
                   <p>{n.message}</p>
                   <button
@@ -503,7 +504,20 @@ export default function AdminPage() {
                   {n.status === 'approved' && <span className="status-badge approved">Принято</span>}
                   {n.status === 'rejected' && <span className="status-badge rejected">Отклонено</span>}
                 </div>
-                {isPending && (
+                {isUnread && !isTransfer && (
+                  <div className="request-actions" style={{ marginTop: 8 }}>
+                    <button className="btn-approve" onClick={async () => {
+                      await authFetch('/api/shifts/reject-transfer', {
+                        method: 'POST',
+                        body: JSON.stringify({ notificationId: n.id }),
+                      })
+                      loadNotifications()
+                    }}>
+                      Ок
+                    </button>
+                  </div>
+                )}
+                {isTransfer && (
                   <div className="request-actions" style={{ marginTop: 8 }}>
                     <button className="btn-approve" onClick={async () => {
                       await authFetch('/api/shifts/approve-transfer', {
