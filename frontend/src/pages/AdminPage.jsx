@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [newAddress, setNewAddress] = useState('')
   const [addressLoading, setAddressLoading] = useState(false)
   const [addressMsg, setAddressMsg] = useState('')
+  const [showAddressPopup, setShowAddressPopup] = useState(false)
 
   // (даты берутся из DateSlider)
 
@@ -172,29 +173,46 @@ export default function AdminPage() {
     <div className="admin-page">
       <header className="page-header">
         <h1>Админ: {user.name}</h1>
-        <button onClick={logout} className="btn-small">Выйти</button>
+        <div className="header-actions">
+          <button
+            className="btn-icon"
+            onClick={() => setShowAddressPopup(true)}
+            title={profile?.home_address || 'Указать адрес'}
+          >
+            <span className="icon-home">&#x1F3E0;</span>
+          </button>
+          <button onClick={logout} className="btn-small">Выйти</button>
+        </div>
       </header>
 
-      {/* Профиль админа */}
-      <section className="profile-section">
-        <h2>Мой адрес</h2>
-        {profile?.home_address ? (
-          <p className="current-address">{profile.home_address}</p>
-        ) : (
-          <p className="no-address">Адрес не указан</p>
-        )}
-        <div className="address-change">
-          <AddressInput
-            value={newAddress}
-            onChange={setNewAddress}
-            placeholder={profile?.home_address ? 'Новый адрес' : 'Введите домашний адрес'}
-          />
-          <button onClick={submitAdminAddress} disabled={addressLoading || !newAddress}>
-            {addressLoading ? 'Сохраняем...' : (profile?.home_address ? 'Сменить' : 'Сохранить')}
-          </button>
-          {addressMsg && <p className="address-msg">{addressMsg}</p>}
+      {/* Попап смены адреса */}
+      {showAddressPopup && (
+        <div className="popup-overlay" onClick={() => setShowAddressPopup(false)}>
+          <div className="popup-card" onClick={e => e.stopPropagation()}>
+            <div className="popup-header">
+              <h2>Мой адрес</h2>
+              <button className="btn-close" onClick={() => setShowAddressPopup(false)}>×</button>
+            </div>
+            {profile?.home_address && (
+              <p className="current-address">{profile.home_address}</p>
+            )}
+            <div className="address-change">
+              <AddressInput
+                value={newAddress}
+                onChange={setNewAddress}
+                placeholder={profile?.home_address ? 'Новый адрес' : 'Введите домашний адрес'}
+              />
+              <button onClick={async () => {
+                await submitAdminAddress()
+                if (!addressLoading) setTimeout(() => setShowAddressPopup(false), 1500)
+              }} disabled={addressLoading || !newAddress}>
+                {addressLoading ? 'Сохраняем...' : (profile?.home_address ? 'Сменить' : 'Сохранить')}
+              </button>
+              {addressMsg && <p className="address-msg">{addressMsg}</p>}
+            </div>
+          </div>
         </div>
-      </section>
+      )}
 
       {/* Табы */}
       <nav className="admin-tabs">
