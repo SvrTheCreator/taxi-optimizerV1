@@ -15,5 +15,8 @@
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
     "jose": "^6.2.2"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
   }
 }
