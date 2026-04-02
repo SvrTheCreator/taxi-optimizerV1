@@ -39,6 +39,8 @@ export default function AdminPage() {
   const [addressLoading, setAddressLoading] = useState(false)
   const [addressMsg, setAddressMsg] = useState('')
   const [showAddressPopup, setShowAddressPopup] = useState(false)
+  const [myShift, setMyShift] = useState(null)
+  const [shiftLoading, setShiftLoading] = useState(false)
 
   // (даты берутся из DateSlider)
 
@@ -58,6 +60,34 @@ export default function AdminPage() {
     const res = await authFetch('/api/users')
     if (res?.ok) setWorkers(await res.json())
   }, [authFetch])
+
+  const SHIFT_TIMES = ['20:00', '21:00', '21:15', '22:00', '22:15', '23:00']
+
+  // Загрузить свою смену на выбранную дату
+  const loadMyShift = useCallback(async () => {
+    // Используем отдельный запрос — GET /api/shifts возвращает все для админа
+    // Фильтруем на клиенте
+    const found = shifts.find(s => s.user_id === user.id)
+    setMyShift(found || null)
+  }, [shifts, user.id])
+
+  useEffect(() => { loadMyShift() }, [loadMyShift])
+
+  async function selectMyShift(time) {
+    setShiftLoading(true)
+    const current = myShift
+
+    if (current?.shift_time === time) {
+      await authFetch(`/api/shifts/${current.id}`, { method: 'DELETE' })
+    } else {
+      await authFetch('/api/shifts', {
+        method: 'POST',
+        body: JSON.stringify({ date: selectedDate, time }),
+      })
+    }
+    await loadShifts()
+    setShiftLoading(false)
+  }
 
   const loadProfile = useCallback(async () => {
     const res = await authFetch('/api/users/me')
@@ -250,6 +280,25 @@ export default function AdminPage() {
       {tab === 'shifts' && (
         <section>
           <DateSlider selected={selectedDate} onChange={setSelectedDate} />
+
+          {/* Моя смена */}
+          {profile?.home_address && (
+            <div className="my-shift-row">
+              <span className="my-shift-label">Моя смена:</span>
+              <div className="my-shift-times">
+                {SHIFT_TIMES.map(time => (
+                  <button
+                    key={time}
+                    className={`my-shift-btn ${myShift?.shift_time === time ? 'active' : ''}`}
+                    onClick={() => selectMyShift(time)}
+                    disabled={shiftLoading}
+                  >
+                    {time}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {loading ? <p>Загрузка...</p> : (
             <>

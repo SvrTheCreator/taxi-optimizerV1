@@ -856,6 +856,38 @@ button { cursor: pointer; border: none; font-family: inherit; }
 .shift-entry:last-child { border-bottom: none; }
 .shift-entry span { flex: 1; }
 
+/* Admin: my shift row */
+.my-shift-row {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.my-shift-label {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.my-shift-times {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.my-shift-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--gray-100);
+}
+.my-shift-btn.active { background: var(--yellow); color: var(--black); }
+.my-shift-btn:disabled { opacity: 0.4; }
+
 .optimize-btn {
   width: 100%;
   background: var(--yellow);
