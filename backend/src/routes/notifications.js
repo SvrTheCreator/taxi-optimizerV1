@@ -28,6 +28,15 @@ router.post('/read-all', async (req, res) => {
   res.json({ ok: true })
 })
 
+// POST /api/notifications/:id/read — пометить как прочитанное
+router.post('/:id/read', async (req, res) => {
+  await supabase
+    .from('notifications')
+    .update({ is_read: true, status: 'read' })
+    .eq('id', req.params.id)
+  res.json({ ok: true })
+})
+
 // DELETE /api/notifications/:id — удалить уведомление
 router.delete('/:id', async (req, res) => {
   const { error } = await supabase

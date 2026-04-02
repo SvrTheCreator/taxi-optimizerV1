@@ -503,14 +503,12 @@ export default function AdminPage() {
                   <small>{new Date(n.created_at).toLocaleString('ru')}</small>
                   {n.status === 'approved' && <span className="status-badge approved">Принято</span>}
                   {n.status === 'rejected' && <span className="status-badge rejected">Отклонено</span>}
+                  {n.status === 'read' && <span className="status-badge" style={{ background: '#E0E0E0', color: '#666' }}>Прочитано</span>}
                 </div>
                 {isUnread && !isTransfer && (
                   <div className="request-actions" style={{ marginTop: 8 }}>
                     <button className="btn-approve" onClick={async () => {
-                      await authFetch('/api/shifts/reject-transfer', {
-                        method: 'POST',
-                        body: JSON.stringify({ notificationId: n.id }),
-                      })
+                      await authFetch(`/api/notifications/${n.id}/read`, { method: 'POST' })
                       loadNotifications()
                     }}>
                       Ок
