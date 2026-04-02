@@ -938,6 +938,18 @@ button { cursor: pointer; border: none; font-family: inherit; }
   flex-shrink: 0;
 }
 .btn-notif-delete:hover { color: #e53935; }
+.btn-card-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  color: var(--gray-500);
+  font-size: 20px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.btn-card-close:hover { color: #e53935; background: var(--gray-100); }
 .notification-footer {
   display: flex;
   justify-content: space-between;

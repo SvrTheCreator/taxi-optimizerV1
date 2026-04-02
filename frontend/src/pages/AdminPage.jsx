@@ -297,22 +297,20 @@ export default function AdminPage() {
           <h2>Заявки на смену адреса</h2>
           {requests.length === 0 && <p className="hint">Заявок нет</p>}
           {requests.map(r => (
-            <div key={r.id} className={`request-card ${r.status}`}>
-              <div className="request-header">
-                <div className="request-info">
-                  <strong>{r.users?.name}</strong> ({formatPhone(r.users?.phone)})
-                  <br />
-                  <span className="old-addr">Было: {r.users?.home_address || '—'}</span>
-                  <br />
-                  <span className="new-addr">Новый: {r.new_address}</span>
-                </div>
-                <button
-                  className="btn-notif-delete"
-                  onClick={() => handleDeleteRequest(r.id)}
-                  title="Удалить"
-                >
-                  ×
-                </button>
+            <div key={r.id} className={`request-card ${r.status}`} style={{ position: 'relative' }}>
+              <button
+                className="btn-card-close"
+                onClick={() => handleDeleteRequest(r.id)}
+                title="Удалить"
+              >
+                ×
+              </button>
+              <div className="request-info">
+                <strong>{r.users?.name}</strong> ({formatPhone(r.users?.phone)})
+                <br />
+                <span className="old-addr">Было: {r.users?.home_address || '—'}</span>
+                <br />
+                <span className="new-addr">Новый: {r.new_address}</span>
               </div>
               {r.status === 'pending' && (
                 <div className="request-actions">
