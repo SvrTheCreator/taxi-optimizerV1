@@ -114,7 +114,7 @@ export default function AdminPage() {
 
   // Автообновление каждые 15 секунд (silent — без мерцания)
   useEffect(() => {
-    const interval = setInterval(() => { loadShifts(true); loadNotifications(); loadRequests() }, 15000)
+    const interval = setInterval(() => { loadShifts(true); loadNotifications(); loadRequests() }, 10000)
     return () => clearInterval(interval)
   }, [loadShifts, loadNotifications, loadRequests])
 

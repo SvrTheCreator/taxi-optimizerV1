@@ -22,6 +22,7 @@ export default function WorkerPage() {
   const [tempMsg, setTempMsg] = useState('')
   const [tempLoading, setTempLoading] = useState(false)
   const [useTemp, setUseTemp] = useState(false)
+  const [showAddresses, setShowAddresses] = useState(false)
 
   // (даты берутся из DateSlider)
 
@@ -46,7 +47,7 @@ export default function WorkerPage() {
 
   // Автообновление каждые 15 секунд
   useEffect(() => {
-    const interval = setInterval(() => { loadShifts(); loadProfile(); loadNotifications() }, 15000)
+    const interval = setInterval(() => { loadShifts(); loadProfile(); loadNotifications() }, 10000)
     return () => clearInterval(interval)
   }, [loadShifts, loadProfile, loadNotifications])
 
@@ -78,7 +79,7 @@ export default function WorkerPage() {
         toast(data?.error || 'Ошибка', 'error')
       }
     }
-    await loadShifts()
+    await Promise.all([loadShifts(), loadNotifications()])
     setLoading(false)
   }
 
@@ -187,61 +188,17 @@ export default function WorkerPage() {
         </section>
       )}
 
-      {/* Профиль и адрес */}
-      <section className="profile-section">
-        <h2>Мой адрес</h2>
-        {profile?.home_address ? (
-          <p className="current-address">{profile.home_address}</p>
-        ) : (
-          <p className="no-address">Адрес не указан — укажите для записи на смены</p>
-        )}
-
-        {canChangeAddress ? (
-          <div className="address-change">
-            <AddressInput
-              value={newAddress}
-              onChange={setNewAddress}
-              placeholder="Новый домашний адрес"
-            />
-            <button onClick={submitAddress} disabled={addressLoading || !newAddress}>
-              {addressLoading ? 'Сохраняем...' : (hasAddress ? 'Сменить адрес' : 'Сохранить адрес')}
-            </button>
-            {addressMsg && <p className="address-msg">{addressMsg}</p>}
-          </div>
-        ) : (
-          <p className="address-cooldown">
-            Следующая смена адреса доступна: {nextChangeDate}
-          </p>
-        )}
-      </section>
-
-      {/* Временный адрес */}
-      {hasAddress && (
+      {/* Если нет адреса — показать форму сразу */}
+      {!hasAddress && (
         <section className="profile-section">
-          <h2>Временный адрес</h2>
-          <p className="hint" style={{ textAlign: 'left', padding: 0, marginBottom: 8 }}>
-            Один раз в месяц можно указать другой адрес для поездки
-          </p>
-          {profile?.temp_address && (
-            <p className="current-address">Текущий: {profile.temp_address}</p>
-          )}
-          {canSetTemp ? (
-            <div className="address-change">
-              <AddressInput
-                value={tempAddress}
-                onChange={setTempAddress}
-                placeholder="Адрес для разовой поездки"
-              />
-              <button onClick={submitTempAddress} disabled={tempLoading || !tempAddress}>
-                {tempLoading ? 'Сохраняем...' : 'Установить'}
-              </button>
-              {tempMsg && <p className="address-msg">{tempMsg}</p>}
-            </div>
-          ) : (
-            <p className="address-cooldown">
-              Временный адрес уже использован в этом месяце
-            </p>
-          )}
+          <h2>Укажите домашний адрес</h2>
+          <p className="no-address">Нужен адрес для записи на смены</p>
+          <div className="address-change">
+            <AddressInput value={newAddress} onChange={setNewAddress} placeholder="Ваш домашний адрес" />
+            <button onClick={submitAddress} disabled={addressLoading || !newAddress}>
+              {addressLoading ? 'Сохраняем...' : 'Сохранить адрес'}
+            </button>
+          </div>
         </section>
       )}
 
@@ -303,6 +260,57 @@ export default function WorkerPage() {
           <p className="hint">Укажите домашний адрес, чтобы записываться на смены</p>
         )}
       </section>
+
+      {/* Аккордеон: адреса */}
+      {hasAddress && (
+        <section className="accordion-section">
+          <button className="accordion-toggle" onClick={() => setShowAddresses(!showAddresses)}>
+            <span>Мои адреса</span>
+            <span className="accordion-arrow">{showAddresses ? '▲' : '▼'}</span>
+          </button>
+          {showAddresses && (
+            <div className="accordion-body">
+              {/* Основной адрес */}
+              <div className="accordion-block">
+                <h3>Домашний адрес</h3>
+                <p className="current-address">{profile.home_address}</p>
+                {canChangeAddress ? (
+                  <div className="address-change">
+                    <AddressInput value={newAddress} onChange={setNewAddress} placeholder="Новый адрес" />
+                    <button onClick={submitAddress} disabled={addressLoading || !newAddress}>
+                      {addressLoading ? 'Сохраняем...' : 'Сменить'}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="address-cooldown">Смена доступна: {nextChangeDate}</p>
+                )}
+              </div>
+
+              {/* Временный адрес */}
+              <div className="accordion-block">
+                <h3>Временный адрес</h3>
+                <p className="hint" style={{ textAlign: 'left', padding: 0, marginBottom: 8 }}>
+                  Один раз в месяц для другого маршрута
+                </p>
+                {profile?.temp_address && (
+                  <p className="current-address">{profile.temp_address}</p>
+                )}
+                {canSetTemp ? (
+                  <div className="address-change">
+                    <AddressInput value={tempAddress} onChange={setTempAddress} placeholder="Адрес для разовой поездки" />
+                    <button onClick={submitTempAddress} disabled={tempLoading || !tempAddress}>
+                      {tempLoading ? 'Сохраняем...' : 'Установить'}
+                    </button>
+                    {tempMsg && <p className="address-msg">{tempMsg}</p>}
+                  </div>
+                ) : (
+                  <p className="address-cooldown">Использован в этом месяце</p>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }

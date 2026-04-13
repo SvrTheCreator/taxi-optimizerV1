@@ -828,6 +828,30 @@ button { cursor: pointer; border: none; font-family: inherit; }
 .notif-bad { background: #FFCDD2; color: #C62828; }
 .notif-info { background: #FFF9C4; color: #F57F17; }
 
+/* Accordion */
+.accordion-section {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.accordion-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  font-size: 15px;
+  font-weight: 600;
+}
+.accordion-arrow { font-size: 12px; color: var(--gray-500); }
+.accordion-body { padding: 0 16px 16px; }
+.accordion-block { margin-bottom: 14px; }
+.accordion-block:last-child { margin-bottom: 0; }
+.accordion-block h3 { font-size: 14px; margin-bottom: 6px; color: var(--gray-500); }
+
 /* Date slider (Swiper) */
 .date-slider {
   margin-bottom: 14px;
