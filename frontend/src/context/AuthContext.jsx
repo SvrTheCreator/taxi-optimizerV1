@@ -28,7 +28,11 @@ export function AuthProvider({ children }) {
     if (token) headers['Authorization'] = `Bearer ${token}`
     if (options.body) headers['Content-Type'] = 'application/json'
     const res = await fetch(url, { ...options, headers })
-    if (res.status === 401) { logout(); return null }
+    if (res.status === 401) {
+      logout()
+      alert('Сессия истекла. Войдите снова.')
+      return null
+    }
     return res
   }
 

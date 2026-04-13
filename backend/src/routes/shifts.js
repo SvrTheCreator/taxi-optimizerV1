@@ -150,6 +150,14 @@ router.post('/approve-transfer', adminOnly, async (req, res) => {
       .eq('id', notificationId)
   }
 
+  // Уведомляем работника
+  await supabase.from('notifications').insert({
+    user_id: userId,
+    message: `Ваш перенос на ${newTime} утверждён`,
+    is_read: false,
+    status: 'approved',
+  })
+
   res.json({ ok: true })
 })
 
@@ -157,11 +165,29 @@ router.post('/approve-transfer', adminOnly, async (req, res) => {
 router.post('/reject-transfer', adminOnly, async (req, res) => {
   const { notificationId } = req.body
 
+  let userId = null
   if (notificationId) {
+    const { data: notif } = await supabase
+      .from('notifications')
+      .select('user_id')
+      .eq('id', notificationId)
+      .single()
+    userId = notif?.user_id
+
     await supabase
       .from('notifications')
       .update({ is_read: true, status: 'rejected' })
       .eq('id', notificationId)
+  }
+
+  // Уведомляем работника
+  if (userId) {
+    await supabase.from('notifications').insert({
+      user_id: userId,
+      message: 'Ваш запрос на перенос времени отклонён',
+      is_read: false,
+      status: 'rejected',
+    })
   }
 
   res.json({ ok: true })

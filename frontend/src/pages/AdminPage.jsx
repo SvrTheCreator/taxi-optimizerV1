@@ -6,6 +6,7 @@ import DateSlider from '../components/DateSlider'
 import AddressInput from '../components/AddressInput'
 import { optimize } from '../utils/optimizer'
 import { geocodeAddress } from '../utils/api'
+import { useToast } from '../components/Toast'
 
 const WORK_COORDS = { lat: 47.2358, lon: 39.7137 }
 
@@ -21,6 +22,7 @@ function formatPhone(phone) {
 
 export default function AdminPage() {
   const { user, authFetch, logout } = useAuth()
+  const toast = useToast()
   const { dispatch } = useApp()
   const navigate = useNavigate()
   const [selectedDate, setSelectedDate] = useState(todayStr())

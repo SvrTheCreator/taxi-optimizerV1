@@ -119,6 +119,15 @@ router.patch('/:id', adminOnly, async (req, res) => {
       .eq('id', request.user_id)
   }
 
+  // Уведомляем работника о решении
+  const statusText = status === 'approved' ? 'утверждена' : 'отклонена'
+  await supabase.from('notifications').insert({
+    user_id: request.user_id,
+    message: `Ваша заявка на смену адреса (${request.new_address}) ${statusText}`,
+    is_read: false,
+    status: status === 'approved' ? 'approved' : 'rejected',
+  })
+
   res.json({ ok: true, status })
 })
 

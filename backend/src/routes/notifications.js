@@ -4,27 +4,37 @@ import { authMiddleware, adminOnly } from '../auth.js'
 
 const router = Router()
 router.use(authMiddleware)
-router.use(adminOnly)
 
-// GET /api/notifications — непрочитанные уведомления (только админ)
+// GET /api/notifications — уведомления
+// Админ: все (для переносов и т.д.), Работник: только свои
 router.get('/', async (req, res) => {
-  const { data, error } = await supabase
+  let query = supabase
     .from('notifications')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(50)
 
+  if (req.user.role !== 'admin') {
+    query = query.eq('user_id', req.user.userId)
+  }
+
+  const { data, error } = await query
   if (error) return res.status(500).json({ error: error.message })
   res.json(data)
 })
 
 // POST /api/notifications/read-all — пометить все как прочитанные
 router.post('/read-all', async (req, res) => {
-  await supabase
+  let query = supabase
     .from('notifications')
-    .update({ is_read: true })
+    .update({ is_read: true, status: 'read' })
     .eq('is_read', false)
 
+  if (req.user.role !== 'admin') {
+    query = query.eq('user_id', req.user.userId)
+  }
+
+  await query
   res.json({ ok: true })
 })
 
@@ -37,8 +47,8 @@ router.post('/:id/read', async (req, res) => {
   res.json({ ok: true })
 })
 
-// DELETE /api/notifications/:id — удалить уведомление
-router.delete('/:id', async (req, res) => {
+// DELETE /api/notifications/:id — удалить уведомление (только админ)
+router.delete('/:id', adminOnly, async (req, res) => {
   const { error } = await supabase
     .from('notifications')
     .delete()
