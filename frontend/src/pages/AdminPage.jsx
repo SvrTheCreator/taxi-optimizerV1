@@ -391,38 +391,35 @@ export default function AdminPage() {
               {shifts.length === 0 && <p className="hint">Нет записей на эту дату. Работники записываются через своё приложение.</p>}
 
               {shifts.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-                  <button
-                    className="optimize-btn"
-                    onClick={handleOptimize}
-                    disabled={optimizing}
-                    style={{ marginTop: 0 }}
-                  >
-                    {optimizing ? 'Оптимизируем...' : `Оптимизировать (${shifts.length} чел.)`}
-                  </button>
-                  {state.result && (() => {
-                    const optimizedCount = state.result.reduce((sum, g) => sum + g.taxis.reduce((s, t) => s + t.addresses.length, 0), 0)
-                    const currentCount = shifts.length
-                    const changed = optimizedCount !== currentCount
-                    return (
-                      <>
-                        {changed && (
-                          <p style={{ fontSize: 13, color: '#e65100', textAlign: 'center' }}>
-                            Результат устарел: было {optimizedCount} чел., сейчас {currentCount}
-                          </p>
-                        )}
-                        <button
-                          className="optimize-btn"
-                          style={{ background: 'var(--gray-200)', color: 'var(--text)', marginTop: 0 }}
-                          onClick={() => navigate('/result')}
-                        >
-                          Показать результат ({optimizedCount} чел.)
-                        </button>
-                      </>
-                    )
-                  })()}
-                </div>
+                <button
+                  className="optimize-btn"
+                  onClick={handleOptimize}
+                  disabled={optimizing}
+                >
+                  {optimizing ? 'Оптимизируем...' : `Оптимизировать (${shifts.length} чел.)`}
+                </button>
               )}
+
+              {state.result && (() => {
+                const optimizedCount = state.result.reduce((sum, g) => sum + g.taxis.reduce((s, t) => s + t.addresses.length, 0), 0)
+                const currentCount = shifts.length
+                const changed = optimizedCount !== currentCount
+                return (
+                  <div className="last-result-block">
+                    {changed && currentCount > 0 && (
+                      <p className="result-stale">
+                        Результат устарел: было {optimizedCount} чел., сейчас {currentCount}
+                      </p>
+                    )}
+                    <button
+                      className="optimize-btn result-btn"
+                      onClick={() => navigate('/result')}
+                    >
+                      Показать результат ({optimizedCount} чел.)
+                    </button>
+                  </div>
+                )
+              })()}
             </>
           )}
         </section>

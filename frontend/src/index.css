@@ -1021,6 +1021,22 @@ button { cursor: pointer; border: none; font-family: inherit; }
 }
 .optimize-btn:disabled { opacity: 0.5; }
 
+.last-result-block { margin-top: 12px; }
+.result-btn {
+  background: var(--gray-200) !important;
+  color: var(--text) !important;
+  font-size: 14px !important;
+}
+.result-stale {
+  font-size: 13px;
+  color: #e65100;
+  text-align: center;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #FFF3E0;
+  border-radius: 8px;
+}
+
 /* Request cards */
 .request-card {
   background: var(--card-bg);
