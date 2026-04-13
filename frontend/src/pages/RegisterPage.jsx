@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import PhoneInput from '../components/PhoneInput'
 
 export default function RegisterPage({ onSwitch }) {
   const { register } = useAuth()
@@ -49,19 +50,7 @@ export default function RegisterPage({ onSwitch }) {
         </label>
         <label>
           Телефон
-          <input
-            type="tel"
-            placeholder="+7 999 123 45 67"
-            value={phone}
-            onChange={e => {
-              let val = e.target.value
-              if (!val.startsWith('+7')) val = '+7'
-              const digits = val.slice(2).replace(/\D/g, '').slice(0, 10)
-              setPhone('+7' + digits)
-            }}
-            maxLength={12}
-            required
-          />
+          <PhoneInput value={phone} onChange={setPhone} required />
         </label>
         <label>
           Имя

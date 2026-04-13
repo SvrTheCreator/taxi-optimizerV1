@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import PhoneInput from '../components/PhoneInput'
 
 export default function LoginPage({ onSwitch }) {
   const { login } = useAuth()
@@ -12,6 +13,11 @@ export default function LoginPage({ onSwitch }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    const digits = phone.replace(/\D/g, '')
+    if (digits.length !== 11) {
+      setError('Номер телефона должен быть 11 цифр')
+      return
+    }
     setLoading(true)
     try {
       await login(phone, pin)
@@ -28,21 +34,7 @@ export default function LoginPage({ onSwitch }) {
       <form onSubmit={handleSubmit}>
         <label>
           Телефон
-          <input
-            type="tel"
-            placeholder="+7 999 123 45 67"
-            value={phone}
-            onChange={e => {
-              let val = e.target.value
-              // Всегда начинаем с +7
-              if (!val.startsWith('+7')) val = '+7'
-              // Оставляем только +7 и цифры после
-              const digits = val.slice(2).replace(/\D/g, '').slice(0, 10)
-              setPhone('+7' + digits)
-            }}
-            maxLength={12}
-            required
-          />
+          <PhoneInput value={phone} onChange={setPhone} required />
         </label>
         <label>
           ПИН-код
