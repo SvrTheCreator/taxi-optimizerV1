@@ -87,6 +87,23 @@ router.get('/', adminOnly, async (req, res) => {
   res.json(data)
 })
 
+// POST /api/users/:id/reset-pin — сбросить ПИН работника (только админ)
+router.post('/:id/reset-pin', adminOnly, async (req, res) => {
+  const { default: bcrypt } = await import('bcryptjs')
+
+  // Генерируем случайный 4-значный ПИН
+  const newPin = String(Math.floor(1000 + Math.random() * 9000))
+  const pinHash = await bcrypt.hash(newPin, 10)
+
+  const { error } = await supabase
+    .from('users')
+    .update({ pin_hash: pinHash })
+    .eq('id', req.params.id)
+
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ pin: newPin })
+})
+
 // DELETE /api/users/:id — удалить пользователя (только админ)
 router.delete('/:id', adminOnly, async (req, res) => {
   // Очищаем ссылки в invite_codes перед удалением
