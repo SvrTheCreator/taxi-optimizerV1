@@ -31,6 +31,7 @@ export default function AdminPage() {
   const [workers, setWorkers] = useState([])
   const [tab, setTab] = useState('shifts') // 'shifts' | 'requests' | 'workers'
   const [loading, setLoading] = useState(false)
+  const [actionBusy, setActionBusy] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
   const [inviteCode, setInviteCode] = useState(null)
   const [inviteLoading, setInviteLoading] = useState(false)
@@ -145,11 +146,15 @@ export default function AdminPage() {
 
   // Утвердить/отклонить заявку
   async function handleRequest(id, status) {
+    if (actionBusy) return
+    setActionBusy(true)
     await authFetch(`/api/address-requests/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     })
+    toast(status === 'approved' ? 'Заявка утверждена' : 'Заявка отклонена', status === 'approved' ? 'success' : 'info')
     loadRequests()
+    setActionBusy(false)
   }
 
   // Удалить заявку
@@ -374,7 +379,7 @@ export default function AdminPage() {
                 </div>
               ))}
 
-              {shifts.length === 0 && <p className="hint">Нет записей на эту дату</p>}
+              {shifts.length === 0 && <p className="hint">Нет записей на эту дату. Работники записываются через своё приложение.</p>}
 
               {shifts.length > 0 && (
                 <button
@@ -447,7 +452,7 @@ export default function AdminPage() {
                 <span>Код: <strong>{inviteCode}</strong></span>
                 <button
                   className="btn-small"
-                  onClick={() => { navigator.clipboard.writeText(inviteCode) }}
+                  onClick={() => { navigator.clipboard.writeText(inviteCode); toast('Код скопирован!', 'success') }}
                 >
                   Копировать
                 </button>
@@ -460,7 +465,9 @@ export default function AdminPage() {
               <div>
                 <strong>{w.name}</strong> ({formatPhone(w.phone)})
                 <br />
-                <span>{w.home_address || 'адрес не указан'}</span>
+                <span style={w.home_address ? {} : { color: '#e53935', fontWeight: 600 }}>
+                  {w.home_address || 'нет адреса!'}
+                </span>
                 <br />
                 <small>Роль: {w.role}</small>
                 {resetPinResult?.userId === w.id && (

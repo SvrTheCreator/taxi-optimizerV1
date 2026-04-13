@@ -97,12 +97,12 @@ export default function WorkerPage() {
           body: JSON.stringify({ address: newAddress, lat: coords.lat, lon: coords.lon, autoApprove: true }),
         })
         if (res?.ok) {
-          setAddressMsg('Адрес сохранён!')
+          toast('Адрес сохранён!', 'success')
           setNewAddress('')
           loadProfile()
         } else {
           const data = await res?.json()
-          setAddressMsg(data?.error || 'Ошибка')
+          toast(data?.error || 'Ошибка', 'error')
         }
       } else {
         // Смена адреса — через заявку админу
@@ -111,11 +111,11 @@ export default function WorkerPage() {
           body: JSON.stringify({ address: newAddress, lat: coords.lat, lon: coords.lon }),
         })
         if (res?.ok) {
-          setAddressMsg('Заявка отправлена! Ожидайте подтверждения.')
+          toast('Заявка отправлена! Ожидайте подтверждения.', 'info')
           setNewAddress('')
         } else {
           const data = await res?.json()
-          setAddressMsg(data?.error || 'Ошибка')
+          toast(data?.error || 'Ошибка', 'error')
         }
       }
     } catch (err) {
