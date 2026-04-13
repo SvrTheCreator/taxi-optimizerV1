@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useApp } from '../context/AppContext'
@@ -23,7 +23,7 @@ function formatPhone(phone) {
 export default function AdminPage() {
   const { user, authFetch, logout } = useAuth()
   const toast = useToast()
-  const { dispatch } = useApp()
+  const { state, dispatch } = useApp()
   const navigate = useNavigate()
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [shifts, setShifts] = useState([])
@@ -99,10 +99,19 @@ export default function AdminPage() {
     if (res?.ok) setProfile(await res.json())
   }, [authFetch])
 
+  const prevUnreadRef = useRef(0)
   const loadNotifications = useCallback(async () => {
     const res = await authFetch('/api/notifications')
-    if (res?.ok) setNotifications(await res.json())
-  }, [authFetch])
+    if (res?.ok) {
+      const data = await res.json()
+      const newUnread = data.filter(n => n.status === 'pending').length
+      if (newUnread > prevUnreadRef.current && prevUnreadRef.current >= 0) {
+        toast('Новый запрос!', 'info')
+      }
+      prevUnreadRef.current = newUnread
+      setNotifications(data)
+    }
+  }, [authFetch, toast])
 
   useEffect(() => { loadProfile() }, [loadProfile])
   useEffect(() => { loadShifts() }, [loadShifts])
@@ -382,13 +391,37 @@ export default function AdminPage() {
               {shifts.length === 0 && <p className="hint">Нет записей на эту дату. Работники записываются через своё приложение.</p>}
 
               {shifts.length > 0 && (
-                <button
-                  className="optimize-btn"
-                  onClick={handleOptimize}
-                  disabled={optimizing}
-                >
-                  {optimizing ? 'Оптимизируем...' : `Оптимизировать (${shifts.length} чел.)`}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+                  <button
+                    className="optimize-btn"
+                    onClick={handleOptimize}
+                    disabled={optimizing}
+                    style={{ marginTop: 0 }}
+                  >
+                    {optimizing ? 'Оптимизируем...' : `Оптимизировать (${shifts.length} чел.)`}
+                  </button>
+                  {state.result && (() => {
+                    const optimizedCount = state.result.reduce((sum, g) => sum + g.taxis.reduce((s, t) => s + t.addresses.length, 0), 0)
+                    const currentCount = shifts.length
+                    const changed = optimizedCount !== currentCount
+                    return (
+                      <>
+                        {changed && (
+                          <p style={{ fontSize: 13, color: '#e65100', textAlign: 'center' }}>
+                            Результат устарел: было {optimizedCount} чел., сейчас {currentCount}
+                          </p>
+                        )}
+                        <button
+                          className="optimize-btn"
+                          style={{ background: 'var(--gray-200)', color: 'var(--text)', marginTop: 0 }}
+                          onClick={() => navigate('/result')}
+                        >
+                          Показать результат ({optimizedCount} чел.)
+                        </button>
+                      </>
+                    )
+                  })()}
+                </div>
               )}
             </>
           )}
