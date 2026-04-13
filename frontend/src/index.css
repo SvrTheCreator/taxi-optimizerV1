@@ -827,6 +827,7 @@ button { cursor: pointer; border: none; font-family: inherit; }
 .notif-good { background: #C8E6C9; color: #2E7D32; }
 .notif-bad { background: #FFCDD2; color: #C62828; }
 .notif-info { background: #FFF9C4; color: #F57F17; }
+.notif-fade { opacity: 0; transition: opacity 0.5s ease; }
 
 /* Accordion */
 .accordion-section {

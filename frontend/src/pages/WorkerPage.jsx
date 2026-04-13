@@ -7,6 +7,37 @@ import { geocodeAddress } from '../utils/api'
 
 const SHIFT_TIMES = ['20:00', '21:00', '21:15', '22:00', '22:15', '23:00']
 
+function AutoDismissNotif({ notif, authFetch, onDismiss }) {
+  const [fading, setFading] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFading(true)
+      setTimeout(async () => {
+        await authFetch(`/api/notifications/${notif.id}/read`, { method: 'POST' })
+        onDismiss()
+      }, 500)
+    }, 10000)
+    return () => clearTimeout(timer)
+  }, [notif.id, authFetch, onDismiss])
+
+  const dismiss = async () => {
+    setFading(true)
+    setTimeout(async () => {
+      await authFetch(`/api/notifications/${notif.id}/read`, { method: 'POST' })
+      onDismiss()
+    }, 300)
+  }
+
+  const cls = notif.status === 'approved' ? 'notif-good' : notif.status === 'rejected' ? 'notif-bad' : 'notif-info'
+  return (
+    <div className={`worker-notif ${cls} ${fading ? 'notif-fade' : ''}`}>
+      <span>{notif.message}</span>
+      <button onClick={dismiss}>Ок</button>
+    </div>
+  )
+}
+
 export default function WorkerPage() {
   const { user, authFetch, logout } = useAuth()
   const toast = useToast()
@@ -173,17 +204,11 @@ export default function WorkerPage() {
         <button onClick={logout} className="btn-small">Выйти</button>
       </header>
 
-      {/* Уведомления от админа */}
+      {/* Уведомления от админа — автоскрытие через 10 сек */}
       {unreadNotifs.length > 0 && (
         <section className="worker-notifs">
           {unreadNotifs.map(n => (
-            <div key={n.id} className={`worker-notif ${n.status === 'approved' ? 'notif-good' : n.status === 'rejected' ? 'notif-bad' : 'notif-info'}`}>
-              <span>{n.message}</span>
-              <button onClick={async () => {
-                await authFetch(`/api/notifications/${n.id}/read`, { method: 'POST' })
-                loadNotifications()
-              }}>Ок</button>
-            </div>
+            <AutoDismissNotif key={n.id} notif={n} authFetch={authFetch} onDismiss={loadNotifications} />
           ))}
         </section>
       )}

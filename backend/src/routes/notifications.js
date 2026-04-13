@@ -15,7 +15,11 @@ router.get('/', async (req, res) => {
     .limit(50)
 
   if (req.user.role !== 'admin') {
+    // Работник видит только свои уведомления
     query = query.eq('user_id', req.user.userId)
+  } else {
+    // Админ не видит уведомления ДЛЯ работников (ответы на заявки)
+    query = query.not('message', 'like', 'Ваш%')
   }
 
   const { data, error } = await query
