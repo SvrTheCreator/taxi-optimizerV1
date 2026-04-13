@@ -266,10 +266,9 @@ export default function WorkerPage() {
         <section className="accordion-section">
           <button className="accordion-toggle" onClick={() => setShowAddresses(!showAddresses)}>
             <span>Мои адреса</span>
-            <span className="accordion-arrow">{showAddresses ? '▲' : '▼'}</span>
+            <span className={`accordion-arrow ${showAddresses ? 'open' : ''}`}>▼</span>
           </button>
-          {showAddresses && (
-            <div className="accordion-body">
+            <div className={`accordion-body ${showAddresses ? 'open' : ''}`}>
               {/* Основной адрес */}
               <div className="accordion-block">
                 <h3>Домашний адрес</h3>
@@ -308,7 +307,6 @@ export default function WorkerPage() {
                 )}
               </div>
             </div>
-          )}
         </section>
       )}
     </div>

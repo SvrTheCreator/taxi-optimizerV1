@@ -846,8 +846,18 @@ button { cursor: pointer; border: none; font-family: inherit; }
   font-size: 15px;
   font-weight: 600;
 }
-.accordion-arrow { font-size: 12px; color: var(--gray-500); }
-.accordion-body { padding: 0 16px 16px; }
+.accordion-arrow { font-size: 12px; color: var(--gray-500); transition: transform 0.3s; }
+.accordion-arrow.open { transform: rotate(180deg); }
+.accordion-body {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease, padding 0.35s ease;
+}
+.accordion-body.open {
+  max-height: 500px;
+  padding: 0 16px 16px;
+}
 .accordion-block { margin-bottom: 14px; }
 .accordion-block:last-child { margin-bottom: 0; }
 .accordion-block h3 { font-size: 14px; margin-bottom: 6px; color: var(--gray-500); }
