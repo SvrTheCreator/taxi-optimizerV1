@@ -149,6 +149,8 @@ export default function AdminPage() {
 
     const result = optimize(entries, WORK_COORDS)
     dispatch({ type: 'SET_RESULT', payload: result })
+    // Сохраняем дату оптимизации
+    localStorage.setItem('taxi_result_date', selectedDate)
     setOptimizing(false)
     navigate('/result')
   }
@@ -401,6 +403,8 @@ export default function AdminPage() {
               )}
 
               {state.result && (() => {
+                const resultDate = localStorage.getItem('taxi_result_date')
+                if (resultDate !== selectedDate) return null
                 const optimizedCount = state.result.reduce((sum, g) => sum + g.taxis.reduce((s, t) => s + t.addresses.length, 0), 0)
                 const currentCount = shifts.length
                 const changed = optimizedCount !== currentCount
