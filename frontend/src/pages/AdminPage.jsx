@@ -7,6 +7,7 @@ import AddressInput from '../components/AddressInput'
 import { optimize } from '../utils/optimizer'
 import { geocodeAddress } from '../utils/api'
 import { useToast } from '../components/Toast'
+import TelegramBindButton from '../components/TelegramBindButton'
 
 const WORK_COORDS = { lat: 47.2358, lon: 39.7137 }
 
@@ -259,6 +260,8 @@ export default function AdminPage() {
           <button onClick={logout} className="btn-small">Выйти</button>
         </div>
       </header>
+
+      <TelegramBindButton compact />
 
       {/* Попап смены адреса */}
       {showAddressPopup && (

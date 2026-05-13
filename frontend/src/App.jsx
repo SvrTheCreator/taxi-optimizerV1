@@ -5,21 +5,30 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './components/Toast'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import ForgotPinPage from './pages/ForgotPinPage'
 import WorkerPage from './pages/WorkerPage'
 import AdminPage from './pages/AdminPage'
 import ResultPage from './pages/ResultPage'
 
 function AppRoutes() {
   const { user, loading } = useAuth()
-  const [isLogin, setIsLogin] = useState(true)
+  const hasRegToken = new URLSearchParams(window.location.search).has('regToken')
+  const [authScreen, setAuthScreen] = useState(hasRegToken ? 'register' : 'login') // 'login' | 'register' | 'forgot'
 
   if (loading) return null // не показываем ничего пока проверяем токен
 
-  // Не авторизован — показываем логин/регистрацию
+  // Не авторизован — показываем нужный экран
   if (!user) {
-    return isLogin
-      ? <LoginPage onSwitch={() => setIsLogin(false)} />
-      : <RegisterPage onSwitch={() => setIsLogin(true)} />
+    if (authScreen === 'register') {
+      return <RegisterPage onSwitch={() => setAuthScreen('login')} />
+    }
+    if (authScreen === 'forgot') {
+      return <ForgotPinPage onBack={() => setAuthScreen('login')} />
+    }
+    return <LoginPage
+      onSwitch={() => setAuthScreen('register')}
+      onForgot={() => setAuthScreen('forgot')}
+    />
   }
 
   // Авторизован — роутинг по роли

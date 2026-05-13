@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import AddressInput from '../components/AddressInput'
 import DateSlider from '../components/DateSlider'
+import TelegramBindButton from '../components/TelegramBindButton'
 import { geocodeAddress } from '../utils/api'
 
 const SHIFT_TIMES = ['20:00', '21:00', '21:15', '22:00', '22:15', '23:00']
@@ -203,6 +204,9 @@ export default function WorkerPage() {
         <h1>Привет, {user.name}!</h1>
         <button onClick={logout} className="btn-small">Выйти</button>
       </header>
+
+      <TelegramBindButton compact />
+
 
       {/* Уведомления от админа — автоскрытие через 10 сек */}
       {unreadNotifs.length > 0 && (

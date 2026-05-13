@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import PhoneInput from '../components/PhoneInput'
 
-export default function LoginPage({ onSwitch }) {
+export default function LoginPage({ onSwitch, onForgot }) {
   const { login } = useAuth()
   const [phone, setPhone] = useState('+7')
   const [pin, setPin] = useState('')
@@ -60,6 +60,9 @@ export default function LoginPage({ onSwitch }) {
       </form>
       <p className="auth-switch">
         Нет аккаунта? <button type="button" onClick={onSwitch}>Регистрация</button>
+      </p>
+      <p className="auth-switch">
+        <button type="button" className="link-btn" onClick={onForgot}>Забыл PIN</button>
       </p>
     </div>
   )

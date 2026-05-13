@@ -673,6 +673,79 @@ button { cursor: pointer; border: none; font-family: inherit; }
   text-decoration: underline;
   font-size: 14px;
 }
+.auth-page .info { color: #2E7D32; font-size: 14px; }
+.auth-hint { font-size: 14px; color: var(--gray-500); margin-bottom: 8px; }
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--yellow-dark);
+  font-weight: 600;
+  text-decoration: underline;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ======= Telegram bind button ======= */
+.tg-bind {
+  max-width: 480px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #E3F2FD;
+  border: 1px solid #90CAF9;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.tg-bind-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tg-bind-text strong { color: #1565C0; }
+.tg-bind-text span { color: #455A64; font-size: 13px; }
+.tg-bind-btn {
+  background: #1976D2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tg-bind-btn:disabled { opacity: 0.5; cursor: default; }
+.tg-bind-linked {
+  background: #E8F5E9;
+  border-color: #A5D6A7;
+  color: #2E7D32;
+}
+.tg-bind-unlink {
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  text-decoration: underline;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tg-bind-compact { padding: 8px 12px; font-size: 13px; }
+
+.tg-register-btn {
+  display: block;
+  width: 100%;
+  background: #229ED9;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 16px 20px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.tg-register-btn:hover { background: #1A8BBF; }
 
 /* ======= COMMON: page header, btn-small ======= */
 .page-header {

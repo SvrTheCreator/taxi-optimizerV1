@@ -12,6 +12,7 @@ import shiftsRouter from './routes/shifts.js'
 import usersRouter from './routes/users.js'
 import addressRequestsRouter from './routes/addressRequests.js'
 import notificationsRouter from './routes/notifications.js'
+import telegramRouter from './routes/telegram.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -30,6 +31,7 @@ app.use('/api/shifts', shiftsRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/address-requests', addressRequestsRouter)
 app.use('/api/notifications', notificationsRouter)
+app.use('/api/telegram', telegramRouter)
 
 // Проверочный эндпоинт
 app.get('/health', (_req, res) => res.json({ ok: true }))
