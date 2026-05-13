@@ -37,33 +37,7 @@ export default function TelegramBindButton({ compact = false }) {
     }
   }
 
-  async function unbind() {
-    if (!confirm('Отвязать Telegram? Восстановить PIN через бота больше не получится.')) return
-    setBusy(true)
-    try {
-      const res = await authFetch('/api/telegram/me', { method: 'DELETE' })
-      if (!res) return
-      if (res.ok) {
-        setLinked(false)
-        toast('Telegram отвязан', 'info')
-      }
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  if (linked === null) return null
-
-  if (linked) {
-    return (
-      <div className={`tg-bind tg-bind-linked ${compact ? 'tg-bind-compact' : ''}`}>
-        <span>✅ Telegram привязан</span>
-        <button type="button" onClick={unbind} disabled={busy} className="tg-bind-unlink">
-          Отвязать
-        </button>
-      </div>
-    )
-  }
+  if (linked === null || linked) return null
 
   return (
     <div className={`tg-bind ${compact ? 'tg-bind-compact' : ''}`}>

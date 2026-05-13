@@ -35,7 +35,6 @@ export default function AdminPage() {
   const [actionBusy, setActionBusy] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
-  const [resetPinResult, setResetPinResult] = useState(null) // { userId, pin }
   const [notifications, setNotifications] = useState([])
   const [profile, setProfile] = useState(null)
   const [newAddress, setNewAddress] = useState('')
@@ -467,8 +466,6 @@ export default function AdminPage() {
         <section>
           <h2>Работники ({workers.length})</h2>
 
-          <p className="auth-hint">Работники регистрируются сами через Telegram. Здесь можно только удалить или сбросить PIN.</p>
-
           {workers.map(w => (
             <div key={w.id} className="worker-card">
               <div>
@@ -479,27 +476,9 @@ export default function AdminPage() {
                 </span>
                 <br />
                 <small>Роль: {w.role}</small>
-                {resetPinResult?.userId === w.id && (
-                  <div className="pin-reset-result">
-                    Новый ПИН: <strong>{resetPinResult.pin}</strong>
-                  </div>
-                )}
               </div>
               {w.role !== 'admin' && (
                 <div className="worker-actions">
-                  <button
-                    className="btn-small"
-                    onClick={async () => {
-                      const res = await authFetch(`/api/users/${w.id}/reset-pin`, { method: 'POST' })
-                      if (res?.ok) {
-                        const data = await res.json()
-                        setResetPinResult({ userId: w.id, pin: data.pin })
-                        toast(`ПИН сброшен: ${data.pin}`, 'success')
-                      }
-                    }}
-                  >
-                    Сбросить ПИН
-                  </button>
                   <button
                     className={`btn-small ${confirmDelete === w.id ? 'btn-danger-confirm' : 'btn-danger'}`}
                     onClick={() => handleDeleteWorker(w.id)}

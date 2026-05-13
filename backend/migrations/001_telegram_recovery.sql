@@ -46,3 +46,8 @@ CREATE TABLE IF NOT EXISTS registration_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_registration_sessions_phone
   ON registration_sessions(phone) WHERE used_at IS NULL;
+
+-- 5) Отключаем RLS на новых таблицах — backend ходит через anon key, как и для остальных таблиц проекта
+ALTER TABLE pin_recovery_codes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE telegram_binding_tokens DISABLE ROW LEVEL SECURITY;
+ALTER TABLE registration_sessions DISABLE ROW LEVEL SECURITY;
