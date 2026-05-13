@@ -106,17 +106,35 @@ router.post('/webhook', async (req, res) => {
 
     const name = (c.first_name || message.from?.first_name || 'Пользователь').trim()
 
-    // Если юзер с таким телефоном уже есть — не создаём сессию
+    // Если юзер с таким телефоном уже есть — либо привязываем TG, либо сообщаем что уже всё привязано
     const { data: existing } = await supabase
       .from('users')
-      .select('id')
+      .select('id, telegram_chat_id, name')
       .eq('phone', phone)
       .single()
 
     if (existing) {
+      if (existing.telegram_chat_id) {
+        // Уже привязан — ничего не делаем
+        if (existing.telegram_chat_id === chatId) {
+          await sendMessage(chatId,
+            '✅ Этот аккаунт уже привязан к твоему Telegram.\n\nЕсли забыл PIN — на сайте нажми <b>«Забыл PIN»</b>.',
+            { reply_markup: { remove_keyboard: true } }
+          )
+        } else {
+          await sendMessage(chatId,
+            '❗️ К этому номеру уже привязан другой Telegram.\n\nЕсли это твой аккаунт — обратись к админу.',
+            { reply_markup: { remove_keyboard: true } }
+          )
+        }
+        return res.json({ ok: true })
+      }
+
+      // Аккаунт есть, TG не привязан — привязываем сейчас
+      await supabase.from('users').update({ telegram_chat_id: chatId }).eq('id', existing.id)
       await sendMessage(chatId,
-        '❗️ Этот номер уже зарегистрирован.\n\n' +
-        'Если забыл PIN — открой сайт и нажми <b>«Забыл PIN»</b> на странице входа.',
+        `✅ Привет, ${existing.name}! Я привязал твой Telegram к существующему аккаунту.\n\n` +
+        'Теперь на сайте нажми <b>«Забыл PIN»</b> на странице входа — я пришлю сюда код для смены PIN.',
         { reply_markup: { remove_keyboard: true } }
       )
       return res.json({ ok: true })

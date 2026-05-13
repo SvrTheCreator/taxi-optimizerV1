@@ -92,6 +92,10 @@ export default function ForgotPinPage({ onBack }) {
       {step === 'code' && (
         <form onSubmit={verify}>
           {info && <p className="info">{info}</p>}
+          <p className="auth-hint">
+            Код не приходит? Возможно, Telegram не привязан к твоему аккаунту.
+            Открой бота и пройди «Регистрация через Telegram» — если аккаунт уже есть, бот сам его привяжет.
+          </p>
           <label>
             Код из Telegram
             <input

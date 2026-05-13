@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import PhoneInput from '../components/PhoneInput'
 
 const BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'taxi_optimizer_helper_bot'
 
@@ -11,21 +10,18 @@ function formatPhone(digits) {
 }
 
 export default function RegisterPage({ onSwitch }) {
-  const { register, registerViaTg } = useAuth()
+  const { registerViaTg } = useAuth()
 
   // Если в URL есть ?regToken=... — режим завершения TG-регистрации
   const params = new URLSearchParams(window.location.search)
   const regToken = params.get('regToken')
 
-  const [mode, setMode] = useState(regToken ? 'tg-finish' : 'choose') // 'choose' | 'manual' | 'tg-finish'
+  const [mode] = useState(regToken ? 'tg-finish' : 'start') // 'start' | 'tg-finish'
   const [session, setSession] = useState(null) // { phone, name }
   const [sessionError, setSessionError] = useState('')
 
   const [pin, setPin] = useState('')
   const [showPin, setShowPin] = useState(false)
-  const [phone, setPhone] = useState('+7')
-  const [name, setName] = useState('')
-  const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -64,28 +60,6 @@ export default function RegisterPage({ onSwitch }) {
     }
   }
 
-  async function submitManualRegister(e) {
-    e.preventDefault()
-    setError('')
-    const phoneDigits = phone.replace(/\D/g, '')
-    if (phoneDigits.length !== 11) {
-      setError('Номер телефона должен быть 11 цифр')
-      return
-    }
-    if (pin.length !== 4) {
-      setError('ПИН должен быть 4 цифры')
-      return
-    }
-    setLoading(true)
-    try {
-      await register(phone, name, pin, inviteCode)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   function openTgBot() {
     window.open(`https://t.me/${BOT_USERNAME}?start=register`, '_blank')
   }
@@ -98,7 +72,7 @@ export default function RegisterPage({ onSwitch }) {
           <h1>Регистрация</h1>
           <p className="error">{sessionError}</p>
           <p className="auth-hint">Открой бота снова и начни заново.</p>
-          <button onClick={() => { window.history.replaceState({}, '', '/'); setMode('choose'); setSessionError('') }}>
+          <button onClick={() => { window.history.replaceState({}, '', '/'); window.location.reload() }}>
             Назад
           </button>
         </div>
@@ -142,80 +116,16 @@ export default function RegisterPage({ onSwitch }) {
     )
   }
 
-  // === Выбор способа ===
-  if (mode === 'choose') {
-    return (
-      <div className="auth-page">
-        <h1>Регистрация</h1>
-        <p className="auth-hint">Зарегистрируйся через Telegram — займёт минуту, никаких кодов от админа не нужно.</p>
-        <button type="button" className="tg-register-btn" onClick={openTgBot}>
-          📱 Зарегистрироваться через Telegram
-        </button>
-        <p className="auth-hint" style={{ marginTop: 24, textAlign: 'center' }}>
-          <button type="button" className="link-btn" onClick={() => setMode('manual')}>
-            Регистрация по коду приглашения
-          </button>
-        </p>
-        <p className="auth-switch">
-          Уже есть аккаунт? <button type="button" onClick={onSwitch}>Войти</button>
-        </p>
-      </div>
-    )
-  }
-
-  // === Ручная регистрация (legacy fallback) ===
+  // === Старт: одна кнопка → бот ===
   return (
     <div className="auth-page">
-      <h1>Регистрация по коду</h1>
-      <form onSubmit={submitManualRegister}>
-        <label>
-          Код приглашения
-          <input
-            type="text"
-            placeholder="получите у администратора"
-            value={inviteCode}
-            onChange={e => setInviteCode(e.target.value.toUpperCase().slice(0, 4))}
-          />
-          <small style={{ color: '#9E9E9E' }}>Администратору код не нужен</small>
-        </label>
-        <label>
-          Телефон
-          <PhoneInput value={phone} onChange={setPhone} required />
-        </label>
-        <label>
-          Имя
-          <input
-            type="text"
-            placeholder="Как вас зовут"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          ПИН-код
-          <div className="pin-field">
-            <input
-              type={showPin ? 'text' : 'password'}
-              inputMode="numeric"
-              maxLength={4}
-              placeholder="4 цифры"
-              value={pin}
-              onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              required
-            />
-            <button type="button" className="pin-toggle" onClick={() => setShowPin(!showPin)}>
-              {showPin ? '🙈' : '👁'}
-            </button>
-          </div>
-        </label>
-        {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={loading}>
-          {loading ? 'Регистрируем...' : 'Зарегистрироваться'}
-        </button>
-      </form>
+      <h1>Регистрация</h1>
+      <p className="auth-hint">Зарегистрируйся через Telegram — займёт минуту.</p>
+      <button type="button" className="tg-register-btn" onClick={openTgBot}>
+        📱 Зарегистрироваться через Telegram
+      </button>
       <p className="auth-switch">
-        <button type="button" className="link-btn" onClick={() => setMode('choose')}>Назад</button>
+        Уже есть аккаунт? <button type="button" onClick={onSwitch}>Войти</button>
       </p>
     </div>
   )

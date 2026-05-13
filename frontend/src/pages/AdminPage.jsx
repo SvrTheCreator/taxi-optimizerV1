@@ -34,8 +34,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
-  const [inviteCode, setInviteCode] = useState(null)
-  const [inviteLoading, setInviteLoading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [resetPinResult, setResetPinResult] = useState(null) // { userId, pin }
   const [notifications, setNotifications] = useState([])
@@ -204,17 +202,6 @@ export default function AdminPage() {
       setAddressMsg('Ошибка: ' + err.message)
     }
     setAddressLoading(false)
-  }
-
-  // Сгенерировать инвайт-код
-  async function generateInvite() {
-    setInviteLoading(true)
-    const res = await authFetch('/api/auth/invite', { method: 'POST' })
-    if (res?.ok) {
-      const data = await res.json()
-      setInviteCode(data.code)
-    }
-    setInviteLoading(false)
   }
 
   // Удалить работника (два нажатия: первое — подтвердить, второе — удалить)
@@ -480,22 +467,7 @@ export default function AdminPage() {
         <section>
           <h2>Работники ({workers.length})</h2>
 
-          <div className="invite-section">
-            <button className="invite-btn" onClick={generateInvite} disabled={inviteLoading}>
-              {inviteLoading ? 'Генерируем...' : 'Пригласить работника'}
-            </button>
-            {inviteCode && (
-              <div className="invite-code-card">
-                <span>Код: <strong>{inviteCode}</strong></span>
-                <button
-                  className="btn-small"
-                  onClick={() => { navigator.clipboard.writeText(inviteCode); toast('Код скопирован!', 'success') }}
-                >
-                  Копировать
-                </button>
-              </div>
-            )}
-          </div>
+          <p className="auth-hint">Работники регистрируются сами через Telegram. Здесь можно только удалить или сбросить PIN.</p>
 
           {workers.map(w => (
             <div key={w.id} className="worker-card">
