@@ -2,6 +2,7 @@ import { Router } from 'express'
 import supabase from '../db/supabase.js'
 import { authMiddleware, adminOnly } from '../auth.js'
 import { isAfterDeadline, DEADLINE_MESSAGE } from '../lib/deadline.js'
+import { notifyAdmins } from '../lib/notifyAdmin.js'
 
 const router = Router()
 router.use(authMiddleware)
@@ -78,6 +79,11 @@ router.patch('/me/temp-address', async (req, res) => {
     is_read: false,
     status: 'pending',
   })
+
+  await notifyAdmins(
+    `📍 <b>Временный адрес</b>\n` +
+    `${user?.name || 'Работник'}: ${address}`
+  )
 
   res.json({ ok: true })
 })

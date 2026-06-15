@@ -2,6 +2,7 @@ import { Router } from 'express'
 import supabase from '../db/supabase.js'
 import { authMiddleware, adminOnly } from '../auth.js'
 import { isAfterDeadline, DEADLINE_MESSAGE } from '../lib/deadline.js'
+import { notifyAdmins } from '../lib/notifyAdmin.js'
 
 const router = Router()
 router.use(authMiddleware)
@@ -117,6 +118,12 @@ router.post('/', async (req, res) => {
       message: `${user?.name || 'Работник'} просит перенести ${ruDate}: ${existing.shift_time} → ${time}`,
       is_read: false,
     })
+
+    await notifyAdmins(
+      `🔄 <b>Запрос на перенос</b>\n` +
+      `${user?.name || 'Работник'}: ${ruDate}\n` +
+      `${existing.shift_time} → ${time}`
+    )
 
     return res.json({ requested: true, from: existing.shift_time, to: time })
   }

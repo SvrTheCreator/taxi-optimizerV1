@@ -2,6 +2,7 @@ import { Router } from 'express'
 import supabase from '../db/supabase.js'
 import { authMiddleware, adminOnly } from '../auth.js'
 import { isAfterDeadline, DEADLINE_MESSAGE } from '../lib/deadline.js'
+import { notifyAdmins } from '../lib/notifyAdmin.js'
 
 const router = Router()
 router.use(authMiddleware)
@@ -64,6 +65,20 @@ router.post('/', async (req, res) => {
     .single()
 
   if (error) return res.status(500).json({ error: error.message })
+
+  // Оповещаем админа в Telegram (имя берём из БД — в токене его нет)
+  const { data: applicant } = await supabase
+    .from('users')
+    .select('name, home_address')
+    .eq('id', req.user.userId)
+    .single()
+  await notifyAdmins(
+    `🏠 <b>Заявка на смену адреса</b>\n` +
+    `От: ${applicant?.name || 'работник'}\n` +
+    `Было: ${applicant?.home_address || '—'}\n` +
+    `Новый: ${address}`
+  )
+
   res.json(data)
 })
 
