@@ -941,6 +941,32 @@ button { cursor: pointer; border: none; font-family: inherit; }
   margin-bottom: 14px;
   padding: 4px 0;
 }
+.date-single {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 0 auto 16px;
+  padding: 12px 28px;
+  width: fit-content;
+  background: var(--yellow);
+  color: var(--black);
+  border-radius: 16px;
+  box-shadow: 0 3px 12px rgba(255, 221, 45, 0.4);
+}
+.date-single-day {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+.date-single-full {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
 .date-slide {
   display: flex;
   flex-direction: column;
