@@ -10,10 +10,11 @@ const ALERT_PHONES = (process.env.ALERT_ADMIN_PHONES || '')
   .filter(Boolean)
 
 // Шлёт сообщение в Telegram админам-получателям, у кого привязан чат.
+// opts.excludeUserId — не слать этому пользователю (чтобы не пинговать самого себя).
 // Никогда не роняет основной запрос — оповещение не критично.
 // ВАЖНО: на Vercel (serverless) вызывать с await ДО res.json(),
 // иначе функция может «заснуть» и сообщение не уйдёт.
-export async function notifyAdmins(text) {
+export async function notifyAdmins(text, opts = {}) {
   try {
     let query = supabase
       .from('users')
@@ -22,6 +23,7 @@ export async function notifyAdmins(text) {
       .not('telegram_chat_id', 'is', null)
 
     if (ALERT_PHONES.length) query = query.in('phone', ALERT_PHONES)
+    if (opts.excludeUserId) query = query.neq('id', opts.excludeUserId)
 
     const { data: admins } = await query
     if (!admins?.length) return

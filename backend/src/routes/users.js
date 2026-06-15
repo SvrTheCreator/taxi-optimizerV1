@@ -35,6 +35,19 @@ router.patch('/me/address', async (req, res) => {
     .eq('id', req.user.userId)
 
   if (error) return res.status(500).json({ error: error.message })
+
+  // Оповещаем других админов в Telegram (себя — исключаем)
+  const { data: me } = await supabase
+    .from('users')
+    .select('name')
+    .eq('id', req.user.userId)
+    .single()
+  await notifyAdmins(
+    `🏠 <b>Админ сменил адрес</b>\n` +
+    `${me?.name || 'Админ'}: ${address}`,
+    { excludeUserId: req.user.userId }
+  )
+
   res.json({ ok: true })
 })
 
