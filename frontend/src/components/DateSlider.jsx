@@ -6,7 +6,7 @@ import 'swiper/css/free-mode'
 const DAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
 const MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
 
-function getDates(count = 7) {
+function getDates(count = 1) {
   return Array.from({ length: count }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() + i)
@@ -19,8 +19,8 @@ function getDates(count = 7) {
   })
 }
 
-export default function DateSlider({ selected, onChange }) {
-  const dates = getDates()
+export default function DateSlider({ selected, onChange, days = 1 }) {
+  const dates = getDates(days)
 
   return (
     <Swiper

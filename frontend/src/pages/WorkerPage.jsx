@@ -5,6 +5,7 @@ import AddressInput from '../components/AddressInput'
 import DateSlider from '../components/DateSlider'
 import TelegramBindButton from '../components/TelegramBindButton'
 import { geocodeAddress } from '../utils/api'
+import { isAfterDeadline, DEADLINE_HOUR_MSK } from '../utils/deadline'
 
 const SHIFT_TIMES = ['20:00', '21:00', '21:15', '22:00', '22:15', '23:00']
 
@@ -196,6 +197,9 @@ export default function WorkerPage() {
     ? new Date(new Date(profile.home_updated).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ru')
     : null
 
+  // Дедлайн 18:00 МСК — пересчитывается при каждом автообновлении (раз в 10 сек)
+  const afterDeadline = isAfterDeadline()
+
   const unreadNotifs = notifications.filter(n => !n.is_read)
 
   return (
@@ -207,6 +211,12 @@ export default function WorkerPage() {
 
       <TelegramBindButton compact />
 
+      {afterDeadline && (
+        <div className="deadline-banner">
+          ⏰ Приём закрыт после {DEADLINE_HOUR_MSK}:00 МСК. Записаться на смену и внести адрес
+          можно завтра до {DEADLINE_HOUR_MSK}:00.
+        </div>
+      )}
 
       {/* Уведомления от админа — автоскрытие через 10 сек */}
       {unreadNotifs.length > 0 && (
@@ -224,7 +234,7 @@ export default function WorkerPage() {
           <p className="no-address">Нужен адрес для записи на смены</p>
           <div className="address-change">
             <AddressInput value={newAddress} onChange={setNewAddress} placeholder="Ваш домашний адрес" />
-            <button onClick={submitAddress} disabled={addressLoading || !newAddress}>
+            <button onClick={submitAddress} disabled={addressLoading || !newAddress || afterDeadline}>
               {addressLoading ? 'Сохраняем...' : 'Сохранить адрес'}
             </button>
           </div>
@@ -245,7 +255,7 @@ export default function WorkerPage() {
                 key={time}
                 className={`shift-btn ${isActive ? 'active' : ''}`}
                 onClick={() => selectShift(time)}
-                disabled={loading || (!profile?.home_address && !isActive)}
+                disabled={loading || afterDeadline || (!profile?.home_address && !isActive)}
               >
                 {time} {isActive ? '✓' : ''}
               </button>
@@ -258,7 +268,7 @@ export default function WorkerPage() {
             <input
               type="checkbox"
               checked={useTemp}
-              disabled={!canSetTemp && !useTemp}
+              disabled={afterDeadline || (!canSetTemp && !useTemp)}
               onChange={async (e) => {
                 const val = e.target.checked
                 if (val && !useTemp) {
@@ -305,7 +315,7 @@ export default function WorkerPage() {
                 {canChangeAddress ? (
                   <div className="address-change">
                     <AddressInput value={newAddress} onChange={setNewAddress} placeholder="Новый адрес" />
-                    <button onClick={submitAddress} disabled={addressLoading || !newAddress}>
+                    <button onClick={submitAddress} disabled={addressLoading || !newAddress || afterDeadline}>
                       {addressLoading ? 'Сохраняем...' : 'Сменить'}
                     </button>
                   </div>
@@ -326,7 +336,7 @@ export default function WorkerPage() {
                 {canSetTemp ? (
                   <div className="address-change">
                     <AddressInput value={tempAddress} onChange={setTempAddress} placeholder="Адрес для разовой поездки" />
-                    <button onClick={submitTempAddress} disabled={tempLoading || !tempAddress}>
+                    <button onClick={submitTempAddress} disabled={tempLoading || !tempAddress || afterDeadline}>
                       {tempLoading ? 'Сохраняем...' : 'Установить'}
                     </button>
                     {tempMsg && <p className="address-msg">{tempMsg}</p>}

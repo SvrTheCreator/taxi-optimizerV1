@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import supabase from '../db/supabase.js'
 import { authMiddleware, adminOnly } from '../auth.js'
+import { isAfterDeadline, DEADLINE_MESSAGE } from '../lib/deadline.js'
 
 const router = Router()
 router.use(authMiddleware)
@@ -43,6 +44,11 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { date, time, useTemp } = req.body
   if (!date || !time) return res.status(400).json({ error: 'Нужны date и time' })
+
+  // Дедлайн 18:00 МСК — для работников (запись/смена времени/перенос). Админ — без ограничений.
+  if (req.user.role !== 'admin' && isAfterDeadline()) {
+    return res.status(403).json({ error: DEADLINE_MESSAGE })
+  }
 
   // Проверяем: есть ли уже запись на этот день
   const { data: existing } = await supabase

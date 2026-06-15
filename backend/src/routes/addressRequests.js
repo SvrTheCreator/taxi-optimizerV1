@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import supabase from '../db/supabase.js'
 import { authMiddleware, adminOnly } from '../auth.js'
+import { isAfterDeadline, DEADLINE_MESSAGE } from '../lib/deadline.js'
 
 const router = Router()
 router.use(authMiddleware)
@@ -11,6 +12,11 @@ router.post('/', async (req, res) => {
   const { address, lat, lon, autoApprove } = req.body
   if (!address || lat == null || lon == null) {
     return res.status(400).json({ error: 'Нужны address, lat и lon' })
+  }
+
+  // Дедлайн 18:00 МСК — для работников (админ вносит адрес в любое время)
+  if (req.user.role !== 'admin' && isAfterDeadline()) {
+    return res.status(403).json({ error: DEADLINE_MESSAGE })
   }
 
   // Если autoApprove — сразу записываем адрес пользователю

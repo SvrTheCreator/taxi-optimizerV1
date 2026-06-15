@@ -8,6 +8,7 @@ import { optimize } from '../utils/optimizer'
 import { geocodeAddress } from '../utils/api'
 import { useToast } from '../components/Toast'
 import TelegramBindButton from '../components/TelegramBindButton'
+import { playBeep } from '../utils/sound'
 
 const WORK_COORDS = { lat: 47.2358, lon: 39.7137 }
 
@@ -54,10 +55,21 @@ export default function AdminPage() {
     if (!silent) setLoading(false)
   }, [authFetch, selectedDate])
 
+  const prevReqPendingRef = useRef(null)
   const loadRequests = useCallback(async () => {
     const res = await authFetch('/api/address-requests')
-    if (res?.ok) setRequests(await res.json())
-  }, [authFetch])
+    if (res?.ok) {
+      const data = await res.json()
+      const pending = data.filter(r => r.status === 'pending').length
+      // Звук только при реальном росте (не на первой загрузке)
+      if (prevReqPendingRef.current !== null && pending > prevReqPendingRef.current) {
+        toast('Новая заявка на адрес!', 'info')
+        playBeep()
+      }
+      prevReqPendingRef.current = pending
+      setRequests(data)
+    }
+  }, [authFetch, toast])
 
   const loadWorkers = useCallback(async () => {
     const res = await authFetch('/api/users')
@@ -97,14 +109,16 @@ export default function AdminPage() {
     if (res?.ok) setProfile(await res.json())
   }, [authFetch])
 
-  const prevUnreadRef = useRef(0)
+  const prevUnreadRef = useRef(null)
   const loadNotifications = useCallback(async () => {
     const res = await authFetch('/api/notifications')
     if (res?.ok) {
       const data = await res.json()
       const newUnread = data.filter(n => n.status === 'pending').length
-      if (newUnread > prevUnreadRef.current && prevUnreadRef.current >= 0) {
+      // Звук + тост только при реальном росте (не на первой загрузке страницы)
+      if (prevUnreadRef.current !== null && newUnread > prevUnreadRef.current) {
         toast('Новый запрос!', 'info')
+        playBeep()
       }
       prevUnreadRef.current = newUnread
       setNotifications(data)

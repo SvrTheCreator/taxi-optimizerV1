@@ -1110,6 +1110,18 @@ button { cursor: pointer; border: none; font-family: inherit; }
   border-radius: 8px;
 }
 
+.deadline-banner {
+  font-size: 14px;
+  line-height: 1.4;
+  color: #b71c1c;
+  background: #FFEBEE;
+  border: 1px solid #FFCDD2;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
 /* Request cards */
 .request-card {
   background: var(--card-bg);
