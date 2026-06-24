@@ -48,6 +48,8 @@ Consequence: in **production**, `/api/geocode`, `/api/suggest`, `/api/addresses`
 - Phone is normalized everywhere to `7XXXXXXXXXX` (11 digits). `+7…`/`8…` accepted.
 - Roles: `worker` (default) and `admin`. Admins are determined at registration by `ADMIN_PHONE` (comma-separated env). `App.jsx` renders `AdminPage` vs `WorkerPage` by `user.role`.
 - Middleware in `backend/src/auth.js`: `authMiddleware` (sets `req.user = { userId, phone, role }`) and `adminOnly`.
+- **Two registration paths:** (1) Telegram (`register-via-tg`); (2) **admin-issued code** for workers without TG — admin generates a 6-digit code (`POST /api/users/registration-code`, table `registration_codes`), worker self-registers with name+phone+code and sets own PIN (`POST /api/auth/register-via-code`). Worker validation requires a `7XXXXXXXXXX` phone.
+- **Two PIN-recovery paths:** (1) self-service via Telegram (`forgot-pin/*`); (2) **admin reset code** for no-TG workers — admin issues a per-worker code (`POST /api/users/:id/reset-pin-code`, reuses `pin_recovery_codes`), worker sets a new PIN via "Забыл PIN → Есть код от админа" (same `forgot-pin/verify`).
 
 ## Telegram bot (`backend/src/routes/telegram.js`, `backend/src/lib/telegram.js`)
 
@@ -57,11 +59,14 @@ The bot is the self-service hub. Flows:
 - **Binding an existing account:** in-app "Привязать Telegram" → `POST /api/telegram/bind/start` issues a one-time token (`telegram_binding_tokens`) → deep link `t.me/<bot>?start=<token>`. Also: if someone shares a contact whose phone already has an account with no TG, the bot binds it automatically.
 - **Webhook:** `POST /api/telegram/webhook`, protected by header `X-Telegram-Bot-Api-Secret-Token` == `TELEGRAM_WEBHOOK_SECRET`.
 
-**Admin alerts (`backend/src/lib/notifyAdmin.js`):** worker actions DM the admin via the bot so a locked iPhone still gets a native push (in-app Web Audio beep only works while the app is foreground). Triggers: address-change request, shift-transfer request, temp-address set, and an admin changing their own address (`PATCH /me/address`, excludes self). Recipients are admins with a bound TG, optionally narrowed by env `ALERT_ADMIN_PHONES` (comma-separated digits; unset = all admins). Calls are `await`ed before `res.json` (Vercel freezes after the response) and never throw.
+**Admin alerts (`backend/src/lib/notifyAdmin.js`):** worker actions DM the admin via the bot so a locked iPhone still gets a native push (in-app Web Audio beep only works while the app is foreground). Triggers: address-change request, shift-transfer request, temp-address set, **worker cancelling their own ride** (DELETE), and an admin changing their own address (`PATCH /me/address`, excludes self via `excludeUserId`). Recipients are admins with a bound TG, optionally narrowed by env `ALERT_ADMIN_PHONES` (comma-separated digits; unset = all admins). Calls are `await`ed before `res.json` (Vercel freezes after the response) and never throw.
 
 ## Business rules (current)
 
-- **18:00 MSK deadline** (`backend/src/lib/deadline.js`, mirrored in `frontend/src/utils/deadline.js`): workers cannot submit/change addresses (home + temp) or sign up / change / request a shift transfer after 18:00 Moscow time. MSK = UTC+3, computed from `getUTCHours()` (server-TZ-independent). **Admins are exempt.** Shift **cancellation** (DELETE) stays allowed. Enforced on the backend (source of truth); the frontend shows a red banner and disables controls.
+- **18:00 MSK deadline** (`backend/src/lib/deadline.js`, mirrored in `frontend/src/utils/deadline.js`): MSK = UTC+3, computed from `getUTCHours()` (server-TZ-independent). **Admins are exempt.** For workers, after 18:00:
+  - **Blocked:** new shift sign-up, *changing* home address, temp address (set + the use_temp toggle).
+  - **Allowed always:** the **first-ever** home address entry (onboarding — `autoApprove` path), **shift-transfer requests** (already-signed-up worker taps a different time → goes to admin for approval), and **ride cancellation** (DELETE).
+  - Enforced on the backend (source of truth, per-branch in `shifts.js`/`addressRequests.js`); the frontend shows a banner, disables new-signup buttons, but keeps transfer/cancel/first-address controls live.
 - **Same-day only:** `DateSlider` renders just **today** (prop `days`, default 1) — no week-ahead planning. For a single day it draws a centered card instead of the swiper.
 - **Home address:** first entry auto-applies; changing it goes through an admin-approved `address_requests` flow. UI cooldown of ~30 days (`home_updated`) is enforced **frontend-only** (backend doesn't hard-block re-requests).
 - **Temp address:** once per calendar month (`temp_used_at`), enforced backend + frontend.
@@ -75,7 +80,8 @@ Tables in active use (by code):
 - **shift_entries** — `id, user_id, shift_date, shift_time, use_temp, created_at`. One row per user per day.
 - **address_requests** — `id, user_id, new_address, new_lat, new_lon, status (pending|approved|rejected), admin_comment, created_at, resolved_at`
 - **notifications** — `id, user_id, message, is_read, status (pending|read|approved|rejected), created_at`. Admin sees non-`Ваш%` messages; transfer requests are parsed out of `message` text.
-- **registration_sessions, telegram_binding_tokens, pin_recovery_codes** — Telegram flows (token, TTL, `used_at`).
+- **registration_sessions, telegram_binding_tokens, pin_recovery_codes** — Telegram flows (token, TTL, `used_at`). `pin_recovery_codes` is **also** used by the admin PIN-reset code flow.
+- **registration_codes** — admin-issued 6-digit codes for no-TG registration (`code, created_by, used_by, expires_at, used_at`). Migration `backend/migrations/002_registration_codes.sql`.
 - **geocode_cache** — used only by the legacy dev geocode route.
 - **invite_codes** — legacy (invite flow was dropped); only referenced defensively in `users.js` DELETE.
 
