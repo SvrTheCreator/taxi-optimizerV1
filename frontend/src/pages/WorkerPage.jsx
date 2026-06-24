@@ -225,8 +225,8 @@ export default function WorkerPage() {
 
       {afterDeadline && (
         <div className="deadline-banner">
-          ⏰ Приём закрыт после {DEADLINE_HOUR_MSK}:00 МСК. Записаться на смену и внести адрес
-          можно завтра до {DEADLINE_HOUR_MSK}:00.
+          ⏰ После {DEADLINE_HOUR_MSK}:00 МСК новая запись и смена адреса закрыты.
+          Если уже записан — можно запросить перенос времени или отменить поездку.
         </div>
       )}
 
@@ -267,7 +267,7 @@ export default function WorkerPage() {
                 key={time}
                 className={`shift-btn ${isActive ? 'active' : ''}`}
                 onClick={() => selectShift(time)}
-                disabled={loading || afterDeadline || (!profile?.home_address && !isActive)}
+                disabled={loading || (!profile?.home_address && !isActive) || (afterDeadline && !myShifts[0])}
               >
                 {time} {isActive ? '✓' : ''}
               </button>

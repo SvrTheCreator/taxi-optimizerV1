@@ -46,10 +46,7 @@ router.post('/', async (req, res) => {
   const { date, time, useTemp } = req.body
   if (!date || !time) return res.status(400).json({ error: 'Нужны date и time' })
 
-  // Дедлайн 18:00 МСК — для работников (запись/смена времени/перенос). Админ — без ограничений.
-  if (req.user.role !== 'admin' && isAfterDeadline()) {
-    return res.status(403).json({ error: DEADLINE_MESSAGE })
-  }
+  const isWorker = req.user.role !== 'admin'
 
   // Проверяем: есть ли уже запись на этот день
   const { data: existing } = await supabase
@@ -60,8 +57,11 @@ router.post('/', async (req, res) => {
     .single()
 
   if (existing) {
-    // Обновление use_temp без смены времени
+    // Обновление use_temp без смены времени (прямое изменение — под дедлайн 18:00)
     if (existing.shift_time === time && useTemp !== undefined && existing.use_temp !== useTemp) {
+      if (isWorker && isAfterDeadline()) {
+        return res.status(403).json({ error: DEADLINE_MESSAGE })
+      }
       const update = { use_temp: useTemp }
       // При включении temp — отмечаем использование
       if (useTemp) {
@@ -128,7 +128,11 @@ router.post('/', async (req, res) => {
     return res.json({ requested: true, from: existing.shift_time, to: time })
   }
 
-  // Новая запись
+  // Новая запись — для работника закрыта после 18:00 (перенос выше остаётся доступен)
+  if (isWorker && isAfterDeadline()) {
+    return res.status(403).json({ error: DEADLINE_MESSAGE })
+  }
+
   const { data, error } = await supabase
     .from('shift_entries')
     .insert({ user_id: req.user.userId, shift_date: date, shift_time: time })
