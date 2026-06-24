@@ -15,12 +15,8 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Нужны address, lat и lon' })
   }
 
-  // Дедлайн 18:00 МСК — для работников (админ вносит адрес в любое время)
-  if (req.user.role !== 'admin' && isAfterDeadline()) {
-    return res.status(403).json({ error: DEADLINE_MESSAGE })
-  }
-
-  // Если autoApprove — сразу записываем адрес пользователю
+  // Если autoApprove — сразу записываем адрес пользователю.
+  // ПЕРВЫЙ ввод адреса НЕ подпадает под дедлайн 18:00 (нужен для онбординга/регистрации).
   if (autoApprove) {
     const { data: user } = await supabase
       .from('users')
@@ -39,6 +35,12 @@ router.post('/', async (req, res) => {
       .eq('id', req.user.userId)
 
     return res.json({ ok: true, autoApproved: true })
+  }
+
+  // Дедлайн 18:00 МСК — на СМЕНУ адреса (первый ввод выше уже разрешён всегда).
+  // Админ вносит изменения в любое время.
+  if (req.user.role !== 'admin' && isAfterDeadline()) {
+    return res.status(403).json({ error: DEADLINE_MESSAGE })
   }
 
   // Проверяем: нет ли уже pending заявки

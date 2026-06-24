@@ -38,6 +38,18 @@ export default function ForgotPinPage({ onBack }) {
     }
   }
 
+  // У работника уже есть код, который выдал админ — сразу к вводу кода и нового PIN
+  function haveAdminCode() {
+    setError('')
+    const digits = phone.replace(/\D/g, '')
+    if (digits.length !== 11) {
+      setError('Сначала введи свой телефон (11 цифр)')
+      return
+    }
+    setInfo('Введи код, который дал админ, и придумай новый PIN.')
+    setStep('code')
+  }
+
   async function verify(e) {
     e.preventDefault()
     setError('')
@@ -85,6 +97,9 @@ export default function ForgotPinPage({ onBack }) {
           {info && <p className="info">{info}</p>}
           <button type="submit" disabled={loading}>
             {loading ? 'Отправляем...' : 'Отправить код'}
+          </button>
+          <button type="button" className="link-btn" onClick={haveAdminCode}>
+            Есть код от админа
           </button>
         </form>
       )}

@@ -50,6 +50,20 @@ export function AuthProvider({ children }) {
     return data.user
   }
 
+  async function registerViaCode(name, phone, code, pin) {
+    const res = await fetch(`${BASE}/auth/register-via-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone, code, pin }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error)
+    setToken(data.token)
+    setUser(data.user)
+    localStorage.setItem('auth', JSON.stringify(data))
+    return data.user
+  }
+
   async function login(phone, pin) {
     const res = await fetch(`${BASE}/auth/login`, {
       method: 'POST',
@@ -71,7 +85,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, registerViaTg, login, logout, authFetch }}>
+    <AuthContext.Provider value={{ user, token, loading, registerViaTg, registerViaCode, login, logout, authFetch }}>
       {children}
     </AuthContext.Provider>
   )

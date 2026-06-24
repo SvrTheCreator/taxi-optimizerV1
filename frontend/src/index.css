@@ -1136,6 +1136,47 @@ button { cursor: pointer; border: none; font-family: inherit; }
   border-radius: 8px;
 }
 
+.cancel-shift-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  background: #FFCDD2;
+  color: #C62828;
+  font-weight: 700;
+  border-radius: var(--radius);
+}
+.cancel-shift-btn:disabled { opacity: 0.6; }
+
+.reg-code-block {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.reg-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.reg-code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--gray-100);
+}
+.reg-code-value {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  flex: 1;
+}
+.reg-code-exp { font-size: 12px; color: var(--gray-500); }
+
 .deadline-banner {
   font-size: 14px;
   line-height: 1.4;

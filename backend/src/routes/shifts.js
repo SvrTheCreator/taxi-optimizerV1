@@ -206,9 +206,16 @@ router.post('/reject-transfer', adminOnly, async (req, res) => {
   res.json({ ok: true })
 })
 
-// DELETE /api/shifts/:id — отменить запись
+// DELETE /api/shifts/:id — отменить запись (разрешено всегда, в т.ч. после 18:00)
 router.delete('/:id', async (req, res) => {
   const { id } = req.params
+
+  // Сначала забираем запись (для оповещения админа), потом удаляем
+  const { data: entry } = await supabase
+    .from('shift_entries')
+    .select('shift_date, shift_time, user_id, users(name)')
+    .eq('id', id)
+    .single()
 
   const query = supabase.from('shift_entries').delete().eq('id', id)
   if (req.user.role !== 'admin') {
@@ -217,6 +224,26 @@ router.delete('/:id', async (req, res) => {
 
   const { error } = await query
   if (error) return res.status(500).json({ error: error.message })
+
+  // Если запись отменил сам работник — обязательно сообщаем админу
+  if (entry && req.user.role !== 'admin' && entry.user_id === req.user.userId) {
+    const [y, m, d] = String(entry.shift_date).split('-')
+    const ruDate = `${d}.${m}.${y}`
+    const name = entry.users?.name || 'Работник'
+
+    await supabase.from('notifications').insert({
+      user_id: req.user.userId,
+      message: `${name} ОТМЕНИЛ(А) поездку ${ruDate} на ${entry.shift_time}`,
+      is_read: false,
+      status: 'pending',
+    })
+
+    await notifyAdmins(
+      `❌ <b>Отмена поездки</b>\n` +
+      `${name}: ${ruDate}, было ${entry.shift_time}`
+    )
+  }
+
   res.json({ ok: true })
 })
 

@@ -80,6 +80,73 @@ router.post('/register-via-tg', async (req, res) => {
   })
 })
 
+// POST /api/auth/register-via-code — регистрация по коду, который выдал админ
+// (для работников без рабочего Telegram). Работник сам задаёт свой PIN.
+router.post('/register-via-code', async (req, res) => {
+  const { name, phone, code, pin } = req.body
+  if (!name || !phone || !code || !pin) {
+    return res.status(400).json({ error: 'Нужны имя, телефон, код и PIN' })
+  }
+  if (!/^\d{4}$/.test(pin)) return res.status(400).json({ error: 'PIN должен быть 4 цифры' })
+
+  const normalizedPhone = normalizePhone(phone)
+  if (normalizedPhone.length !== 11 || !normalizedPhone.startsWith('7')) {
+    return res.status(400).json({ error: 'Неверный номер телефона' })
+  }
+
+  // Код должен быть активным (не использован, не просрочен)
+  const { data: regCode } = await supabase
+    .from('registration_codes')
+    .select('*')
+    .eq('code', String(code).trim())
+    .is('used_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!regCode) return res.status(400).json({ error: 'Неверный код' })
+  if (new Date(regCode.expires_at) < new Date()) {
+    return res.status(400).json({ error: 'Код просрочен — попроси у админа новый' })
+  }
+
+  // Телефон ещё не должен быть зарегистрирован
+  const { data: existing } = await supabase
+    .from('users')
+    .select('id')
+    .eq('phone', normalizedPhone)
+    .single()
+
+  if (existing) return res.status(409).json({ error: 'Этот номер уже зарегистрирован' })
+
+  const isAdmin = ADMIN_PHONES.some(p => normalizePhone(p) === normalizedPhone)
+  const pinHash = await bcrypt.hash(pin, 10)
+
+  const { data: user, error } = await supabase
+    .from('users')
+    .insert({
+      phone: normalizedPhone,
+      name: String(name).trim(),
+      pin_hash: pinHash,
+      role: isAdmin ? 'admin' : 'worker',
+    })
+    .select()
+    .single()
+
+  if (error) return res.status(500).json({ error: 'Ошибка регистрации: ' + error.message })
+
+  // Гасим код (одноразовый)
+  await supabase
+    .from('registration_codes')
+    .update({ used_at: new Date().toISOString(), used_by: user.id })
+    .eq('id', regCode.id)
+
+  const authToken = await createToken(user)
+  res.json({
+    token: authToken,
+    user: { id: user.id, phone: user.phone, name: user.name, role: user.role },
+  })
+})
+
 // GET /api/auth/registration-session?token=... — публичная инфа о TG-сессии (для пред-заполнения формы)
 router.get('/registration-session', async (req, res) => {
   const { token } = req.query

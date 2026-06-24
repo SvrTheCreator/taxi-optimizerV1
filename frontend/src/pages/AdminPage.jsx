@@ -76,6 +76,48 @@ export default function AdminPage() {
     if (res?.ok) setWorkers(await res.json())
   }, [authFetch])
 
+  const [regCodes, setRegCodes] = useState([])
+  const [codeBusy, setCodeBusy] = useState(false)
+  const loadRegCodes = useCallback(async () => {
+    const res = await authFetch('/api/users/registration-codes')
+    if (res?.ok) setRegCodes(await res.json())
+  }, [authFetch])
+
+  async function generateRegCode() {
+    if (codeBusy) return
+    setCodeBusy(true)
+    const res = await authFetch('/api/users/registration-code', { method: 'POST' })
+    if (res?.ok) {
+      const data = await res.json()
+      toast(`Код создан: ${data.code}`, 'success')
+      loadRegCodes()
+    } else {
+      toast('Не удалось создать код', 'error')
+    }
+    setCodeBusy(false)
+  }
+
+  async function deleteRegCode(id) {
+    await authFetch(`/api/users/registration-code/${id}`, { method: 'DELETE' })
+    loadRegCodes()
+  }
+
+  async function copyCode(code) {
+    try { await navigator.clipboard.writeText(code); toast('Код скопирован', 'info') } catch { /* clipboard может быть недоступен */ }
+  }
+
+  const [lastResetCode, setLastResetCode] = useState(null) // { name, code, ttlHours }
+  async function resetWorkerPin(id) {
+    const res = await authFetch(`/api/users/${id}/reset-pin-code`, { method: 'POST' })
+    if (res?.ok) {
+      const data = await res.json()
+      setLastResetCode(data)
+      toast(`Код сброса PIN: ${data.code}`, 'success')
+    } else {
+      toast('Не удалось создать код', 'error')
+    }
+  }
+
   const SHIFT_TIMES = ['20:00', '21:00', '21:15', '22:00', '22:15', '23:00']
 
   // Загрузить свою смену на выбранную дату
@@ -130,8 +172,8 @@ export default function AdminPage() {
   useEffect(() => { loadNotifications() }, [loadNotifications])
   useEffect(() => {
     if (tab === 'requests') loadRequests()
-    if (tab === 'workers') loadWorkers()
-  }, [tab, loadRequests, loadWorkers])
+    if (tab === 'workers') { loadWorkers(); loadRegCodes() }
+  }, [tab, loadRequests, loadWorkers, loadRegCodes])
 
   // Автообновление каждые 15 секунд (silent — без мерцания)
   useEffect(() => {
@@ -478,6 +520,41 @@ export default function AdminPage() {
       {/* Таб: Работники */}
       {tab === 'workers' && (
         <section>
+          <div className="reg-code-block">
+            <div className="reg-code-head">
+              <h2 style={{ margin: 0 }}>Коды регистрации</h2>
+              <button className="btn-small" onClick={generateRegCode} disabled={codeBusy}>
+                {codeBusy ? '...' : '+ Выдать код'}
+              </button>
+            </div>
+            <p className="hint" style={{ textAlign: 'left', padding: '4px 0' }}>
+              Для работников без Telegram. Продиктуй код — он введёт его на «Регистрация по коду».
+            </p>
+            {regCodes.length === 0 && <p className="hint" style={{ padding: '4px 0' }}>Активных кодов нет</p>}
+            {regCodes.map(c => (
+              <div key={c.id} className="reg-code-row">
+                <span className="reg-code-value" onClick={() => copyCode(c.code)}>{c.code}</span>
+                <span className="reg-code-exp">до {new Date(c.expires_at).toLocaleDateString('ru')}</span>
+                <button className="btn-notif-delete" onClick={() => deleteRegCode(c.id)} title="Отозвать">×</button>
+              </div>
+            ))}
+          </div>
+
+          {lastResetCode && (
+            <div className="reg-code-block" style={{ background: '#E8F5E9' }}>
+              <div className="reg-code-head">
+                <span>Код сброса PIN для <b>{lastResetCode.name}</b> (действует {lastResetCode.ttlHours} ч):</span>
+                <button className="btn-notif-delete" onClick={() => setLastResetCode(null)} title="Скрыть">×</button>
+              </div>
+              <div className="reg-code-row" style={{ borderTop: 'none' }}>
+                <span className="reg-code-value" onClick={() => copyCode(lastResetCode.code)}>{lastResetCode.code}</span>
+              </div>
+              <p className="hint" style={{ textAlign: 'left', padding: '4px 0' }}>
+                Продиктуй работнику. Он введёт его на «Забыл PIN» → «Есть код от админа».
+              </p>
+            </div>
+          )}
+
           <h2>Работники ({workers.length})</h2>
 
           {workers.map(w => (
@@ -493,6 +570,9 @@ export default function AdminPage() {
               </div>
               {w.role !== 'admin' && (
                 <div className="worker-actions">
+                  <button className="btn-small" onClick={() => resetWorkerPin(w.id)}>
+                    Сбросить PIN
+                  </button>
                   <button
                     className={`btn-small ${confirmDelete === w.id ? 'btn-danger-confirm' : 'btn-danger'}`}
                     onClick={() => handleDeleteWorker(w.id)}

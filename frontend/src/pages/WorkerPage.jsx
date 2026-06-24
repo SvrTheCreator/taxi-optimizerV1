@@ -116,6 +116,18 @@ export default function WorkerPage() {
     setLoading(false)
   }
 
+  // Отменить свою поездку — разрешено всегда (в т.ч. после 18:00); админу уйдёт оповещение
+  async function cancelShift() {
+    const current = myShifts[0]
+    if (!current) return
+    if (!window.confirm('Отменить поездку? Админ получит уведомление.')) return
+    setLoading(true)
+    await authFetch(`/api/shifts/${current.id}`, { method: 'DELETE' })
+    toast('Поездка отменена', 'info')
+    await Promise.all([loadShifts(), loadNotifications()])
+    setLoading(false)
+  }
+
   // Сохранить или подать заявку на смену адреса
   async function submitAddress() {
     if (!newAddress) return
@@ -234,7 +246,7 @@ export default function WorkerPage() {
           <p className="no-address">Нужен адрес для записи на смены</p>
           <div className="address-change">
             <AddressInput value={newAddress} onChange={setNewAddress} placeholder="Ваш домашний адрес" />
-            <button onClick={submitAddress} disabled={addressLoading || !newAddress || afterDeadline}>
+            <button onClick={submitAddress} disabled={addressLoading || !newAddress}>
               {addressLoading ? 'Сохраняем...' : 'Сохранить адрес'}
             </button>
           </div>
@@ -291,6 +303,12 @@ export default function WorkerPage() {
               : `Ехать по временному адресу (${profile.temp_address})`
             }
           </label>
+        )}
+
+        {myShifts[0] && (
+          <button className="cancel-shift-btn" onClick={cancelShift} disabled={loading}>
+            Отменить поездку ({myShifts[0].shift_time})
+          </button>
         )}
 
         {shiftMsg && <p className="address-msg">{shiftMsg}</p>}
