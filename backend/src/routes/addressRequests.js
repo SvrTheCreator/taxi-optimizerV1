@@ -29,10 +29,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Адрес уже установлен, используйте заявку' })
     }
 
-    await supabase
+    const { error: updErr } = await supabase
       .from('users')
       .update({ home_address: address, home_lat: lat, home_lon: lon, home_updated: new Date().toISOString() })
       .eq('id', req.user.userId)
+
+    if (updErr) return res.status(500).json({ error: updErr.message })
 
     return res.json({ ok: true, autoApproved: true })
   }

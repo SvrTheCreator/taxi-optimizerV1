@@ -3,32 +3,59 @@
 
 const BASE = '/api'
 
-// Геокодировать адрес через Яндекс.Карты JS API (клиентская сторона)
-// Надёжнее REST API: работает на том же ключе что и карта, лучше понимает короткие адреса
-export function geocodeAddress(address) {
+// Геокодирование адреса с ГАРАНТИРОВАННЫМ таймаутом — спиннер «Сохраняем…»
+// никогда не должен висеть вечно (раньше клиентский ymaps мог зависнуть без ответа).
+// Порядок: серверный Яндекс REST (не зависит от браузера пользователя) → фолбэк на ymaps.
+const GEOCODE_TIMEOUT = 10000
+
+export async function geocodeAddress(address) {
+  // 1) Серверный геокодер /api/geocode — основной путь, работает и в проде
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), GEOCODE_TIMEOUT)
+    const res = await fetch(`${BASE}/geocode?address=${encodeURIComponent(address)}`, { signal: ctrl.signal })
+    clearTimeout(timer)
+    if (res.ok) {
+      const data = await res.json()
+      if (data && data.lat != null && data.lon != null) return data
+    }
+  } catch {
+    // сеть/таймаут/нет роута — пробуем клиентские карты ниже
+  }
+
+  // 2) Фолбэк: клиентский ymaps.geocode() — тоже под таймаутом
+  return geocodeViaYmaps(address)
+}
+
+function geocodeViaYmaps(address) {
   return new Promise((resolve, reject) => {
-    // Сначала проверяем кэш бэкенда
-    fetch(`${BASE}/geocode?address=${encodeURIComponent(address)}`)
-      .then(res => res.ok ? res.json() : null)
-      .then(cached => {
-        if (cached) return resolve(cached)
-        // Кэша нет — геокодируем через ymaps.geocode()
-        if (!window.ymaps) return reject(new Error(`Карты не загружены: ${address}`))
-        const hasCity = /ростов|батайск|азов|новочеркасск/i.test(address)
-        const fullAddress = hasCity ? address : `${address}, Ростов-на-Дону`
-        window.ymaps.ready(() => {
-          window.ymaps.geocode(fullAddress, {
-            boundedBy: [[46.5, 38.5], [47.8, 41.5]],
-            results: 1,
-          }).then(res => {
-            const obj = res.geoObjects.get(0)
-            if (!obj) return reject(new Error(`Не найден: ${address}`))
-            const [lat, lon] = obj.geometry.getCoordinates()
-            resolve({ lat, lon, fromCache: false })
-          }).catch(() => reject(new Error(`Не найден: ${address}`)))
-        })
-      })
-      .catch(() => reject(new Error(`Ошибка геокодирования: ${address}`)))
+    if (!window.ymaps) return reject(new Error('Не удалось определить адрес. Попробуйте ещё раз.'))
+    const hasCity = /ростов|батайск|азов|новочеркасск/i.test(address)
+    const fullAddress = hasCity ? address : `${address}, Ростов-на-Дону`
+
+    // Страховка: если ymaps.ready()/geocode() не ответит — промис всё равно завершится
+    let done = false
+    const settle = (fn) => (arg) => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      fn(arg)
+    }
+    const ok = settle(resolve)
+    const fail = settle(reject)
+    const timer = setTimeout(() => fail(new Error('Сервис карт не отвечает. Попробуйте ещё раз.')), GEOCODE_TIMEOUT)
+
+    window.ymaps.ready(() => {
+      window.ymaps.geocode(fullAddress, {
+        boundedBy: [[46.5, 38.5], [47.8, 41.5]],
+        results: 1,
+      }).then(res => {
+        const obj = res.geoObjects.get(0)
+        if (!obj) return fail(new Error(`Адрес не найден: ${address}`))
+        const [lat, lon] = obj.geometry.getCoordinates()
+        ok({ lat, lon, fromCache: false })
+      }).catch(() => fail(new Error(`Адрес не найден: ${address}`)))
+    })
   })
 }
 
