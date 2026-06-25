@@ -8,10 +8,13 @@ const YANDEX_KEY = process.env.YANDEX_API_KEY
 // bbox = "lon_min,lat_min~lon_max,lat_max"
 const ROSTOV_BBOX = '38.5,46.5~41.5,47.8'
 
+// precision === 'other' означает, что Яндекс не нашёл дом/улицу и отдал
+// центроид города (бесполезно для маршрутов) — такой результат отбраковываем.
+const COARSE_PRECISION = 'other'
+
 // GET /api/geocode?address=Стачки 188/3
-// Серверное геокодирование через Яндекс REST. НЕ зависит от клиентских JS-карт,
-// поэтому работает даже если у пользователя не грузится/тупит ymaps в браузере.
-// Без обращения к БД — чистый прокси к Яндексу, монтируется и в dev, и в проде.
+// Серверное геокодирование через Яндекс REST — ФОЛБЭК для случаев, когда у
+// пользователя не грузятся клиентские JS-карты. Без обращения к БД, с таймаутом.
 router.get('/', async (req, res) => {
   const address = req.query.address
   if (!address) return res.status(400).json({ error: 'address is required' })
@@ -22,19 +25,27 @@ router.get('/', async (req, res) => {
     const hasCity = /ростов|батайск|азов|новочеркасск/i.test(address)
     const fullAddress = hasCity ? address : `${address}, Ростов-на-Дону`
 
-    // bbox — страховка от совпадений в других городах
-    const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${YANDEX_KEY}&geocode=${encodeURIComponent(fullAddress)}&format=json&results=1&bbox=${ROSTOV_BBOX}`
+    // rspn=1 — жёстко ограничиваем поиск рамкой bbox (Ростовская область)
+    const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${YANDEX_KEY}&geocode=${encodeURIComponent(fullAddress)}&format=json&results=1&rspn=1&bbox=${ROSTOV_BBOX}`
 
     // Жёсткий таймаут — чтобы serverless-функция не висела на медленном Яндексе
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) })
     if (!response.ok) return res.status(502).json({ error: 'geocoder upstream error' })
     const data = await response.json()
 
-    const point = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject?.Point?.pos
+    const geoObject = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject
+    const point = geoObject?.Point?.pos
     if (!point) return res.status(404).json({ error: 'address not found' })
 
+    // Точность: 'exact'|'number'|'near'|'range'|'street'|'other'.
+    // 'other' = Яндекс распознал только город → координаты бесполезны, отбраковываем.
+    const precision = geoObject?.metaDataProperty?.GeocoderMetaData?.precision
+    if (precision === COARSE_PRECISION) {
+      return res.status(404).json({ error: 'address not found' })
+    }
+
     const [lon, lat] = point.split(' ').map(Number)
-    res.json({ lat, lon, fromCache: false })
+    res.json({ lat, lon, precision, fromCache: false })
   } catch (err) {
     // таймаут/сеть — фронт сам уйдёт в клиентский ymaps-фолбэк
     res.status(504).json({ error: 'geocoding timeout' })

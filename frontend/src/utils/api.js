@@ -5,26 +5,30 @@ const BASE = '/api'
 
 // Геокодирование адреса с ГАРАНТИРОВАННЫМ таймаутом — спиннер «Сохраняем…»
 // никогда не должен висеть вечно (раньше клиентский ymaps мог зависнуть без ответа).
-// Порядок: серверный Яндекс REST (не зависит от браузера пользователя) → фолбэк на ymaps.
+// Порядок: клиентский ymaps (точный, по дому) → фолбэк на серверный REST,
+// если карты в браузере не загрузились/зависли.
 const GEOCODE_TIMEOUT = 10000
 
 export async function geocodeAddress(address) {
-  // 1) Серверный геокодер /api/geocode — основной путь, работает и в проде
+  // 1) Клиентский ymaps.geocode() — основной путь, даёт точность до дома
   try {
-    const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), GEOCODE_TIMEOUT)
-    const res = await fetch(`${BASE}/geocode?address=${encodeURIComponent(address)}`, { signal: ctrl.signal })
-    clearTimeout(timer)
-    if (res.ok) {
-      const data = await res.json()
-      if (data && data.lat != null && data.lon != null) return data
+    return await geocodeViaYmaps(address)
+  } catch (err) {
+    // 2) Фолбэк: серверный геокодер /api/geocode (не зависит от браузера)
+    try {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), GEOCODE_TIMEOUT)
+      const res = await fetch(`${BASE}/geocode?address=${encodeURIComponent(address)}`, { signal: ctrl.signal })
+      clearTimeout(timer)
+      if (res.ok) {
+        const data = await res.json()
+        if (data && data.lat != null && data.lon != null) return data
+      }
+    } catch {
+      // сеть/таймаут — пробрасываем исходную ошибку ниже
     }
-  } catch {
-    // сеть/таймаут/нет роута — пробуем клиентские карты ниже
+    throw err
   }
-
-  // 2) Фолбэк: клиентский ymaps.geocode() — тоже под таймаутом
-  return geocodeViaYmaps(address)
 }
 
 function geocodeViaYmaps(address) {
