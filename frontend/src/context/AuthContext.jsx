@@ -27,10 +27,17 @@ export function AuthProvider({ children }) {
     const headers = { ...options.headers }
     if (token) headers['Authorization'] = `Bearer ${token}`
     if (options.body) headers['Content-Type'] = 'application/json'
-    const res = await fetch(url, { ...options, headers })
+    let res
+    try {
+      res = await fetch(url, { ...options, headers })
+    } catch {
+      // Сеть недоступна (частые отключения/плохой мобильный) — не роняем
+      // приложение и НЕ разлогиниваем. Вызывающий код увидит null и сохранит
+      // текущее состояние (см. кеш профиля в WorkerPage).
+      return null
+    }
     if (res.status === 401) {
       logout()
-      alert('Сессия истекла. Войдите снова.')
       return null
     }
     return res

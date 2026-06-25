@@ -44,7 +44,14 @@ export default function WorkerPage() {
   const { user, authFetch, logout } = useAuth()
   const toast = useToast()
   const [notifications, setNotifications] = useState([])
-  const [profile, setProfile] = useState(null)
+  // Профиль кешируем по пользователю: при сбое сети (частом на мобильном в РФ,
+  // отключения света) приложение не должно «забывать» уже введённый адрес и
+  // заново показывать онбординг.
+  const profileCacheKey = `profile_cache_${user.id}`
+  const [profile, setProfile] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(profileCacheKey)) } catch { return null }
+  })
+  const [profileLoaded, setProfileLoaded] = useState(false)
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [myShifts, setMyShifts] = useState([])
   const [loading, setLoading] = useState(false)
@@ -61,8 +68,14 @@ export default function WorkerPage() {
 
   const loadProfile = useCallback(async () => {
     const res = await authFetch('/api/users/me')
-    if (res?.ok) setProfile(await res.json())
-  }, [authFetch])
+    if (res?.ok) {
+      const data = await res.json()
+      setProfile(data)
+      setProfileLoaded(true)
+      try { localStorage.setItem(profileCacheKey, JSON.stringify(data)) } catch { /* нет места — не критично */ }
+    }
+    // при неуспехе профиль НЕ обнуляем — остаётся последний известный (из кеша)
+  }, [authFetch, profileCacheKey])
 
   const loadShifts = useCallback(async () => {
     const res = await authFetch(`/api/shifts?date=${selectedDate}`)
@@ -202,6 +215,10 @@ export default function WorkerPage() {
 
   // Первый ввод адреса — всегда можно. Смена — раз в 30 дней через заявку.
   const hasAddress = !!profile?.home_address
+  // Онбординг-форму показываем ТОЛЬКО когда есть с чем сравнивать (профиль
+  // загрузился сейчас ИЛИ поднят из кеша) и адреса в нём нет. Иначе при упавшем
+  // запросе профиля (мобильный/отключения) приложение ложно просило адрес заново.
+  const showAddressOnboarding = !hasAddress && (profileLoaded || profile != null)
   const canChangeAddress = !hasAddress || !profile?.home_updated ||
     (Date.now() - new Date(profile.home_updated).getTime()) > 30 * 24 * 60 * 60 * 1000
 
@@ -239,8 +256,8 @@ export default function WorkerPage() {
         </section>
       )}
 
-      {/* Если нет адреса — показать форму сразу */}
-      {!hasAddress && (
+      {/* Форму показываем только когда профиль подтверждён и адреса нет */}
+      {showAddressOnboarding && (
         <section className="profile-section">
           <h2>Укажите домашний адрес</h2>
           <p className="no-address">Нужен адрес для записи на смены</p>
