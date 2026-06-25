@@ -30,8 +30,19 @@ router.get('/', async (req, res) => {
 
     // Жёсткий таймаут — чтобы serverless-функция не висела на медленном Яндексе
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    const data = await response.json().catch(() => null)
+
+    // ВРЕМЕННАЯ ДИАГНОСТИКА: ?debug=1 вернёт сырой ответ Яндекса (ключ скрыт)
+    if (req.query.debug) {
+      return res.json({
+        httpStatus: response.status,
+        requestedAddress: fullAddress,
+        url: url.replace(YANDEX_KEY, 'KEY'),
+        yandex: data,
+      })
+    }
+
     if (!response.ok) return res.status(502).json({ error: 'geocoder upstream error' })
-    const data = await response.json()
 
     const geoObject = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject
     const point = geoObject?.Point?.pos
