@@ -1,0 +1,24 @@
+# systemd-юнит: держит Node-процесс живым и перезапускает после падений/ребута.
+# Положить в /etc/systemd/system/taxi-optimizer.service, затем:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now taxi-optimizer
+#
+# Логи:    journalctl -u taxi-optimizer -f
+# Рестарт: sudo systemctl restart taxi-optimizer
+
+[Unit]
+Description=Taxi Optimizer (Express API + статика фронта)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/taxi-optimizerV1/backend
+ExecStart=/usr/bin/node src/index.js
+Environment=NODE_ENV=production
+Environment=PORT=3001
+# backend/.env подхватывается автоматически через dotenv (cwd = WorkingDirectory)
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

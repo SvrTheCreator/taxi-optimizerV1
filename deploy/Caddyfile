@@ -1,0 +1,10 @@
+# Caddy: автоматический HTTPS (Let's Encrypt) + прокси на Node.
+# Положить в /etc/caddy/Caddyfile, затем: sudo systemctl reload caddy
+#
+# DNS домена ДОЛЖЕН уже указывать на этот сервер (A-запись), иначе Caddy
+# не сможет получить сертификат.
+
+taxioptimizer.ru, www.taxioptimizer.ru {
+	encode gzip
+	reverse_proxy 127.0.0.1:3001
+}
