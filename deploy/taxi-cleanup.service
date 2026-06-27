@@ -1,0 +1,15 @@
+# Разовый запуск ежедневной чистки «Переносов» и «Заявок».
+# Ставится вместе с taxi-cleanup.timer:
+#   sudo cp deploy/taxi-cleanup.* /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now taxi-cleanup.timer
+# Ручной прогон: sudo systemctl start taxi-cleanup.service ; journalctl -u taxi-cleanup
+
+[Unit]
+Description=Taxi Optimizer — ежедневная чистка прочитанных уведомлений/заявок
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/taxi-optimizerV1/backend
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node src/scripts/dailyCleanup.js

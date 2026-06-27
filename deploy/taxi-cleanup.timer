@@ -1,0 +1,11 @@
+# Таймер: каждый день в 06:00 UTC = 09:00 МСК.
+
+[Unit]
+Description=Taxi Optimizer — таймер ежедневной чистки (09:00 МСК)
+
+[Timer]
+OnCalendar=*-*-* 06:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
