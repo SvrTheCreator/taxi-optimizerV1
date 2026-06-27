@@ -2,11 +2,12 @@ import { SignJWT, jwtVerify } from 'jose'
 
 const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'dev-secret-change-me')
 
-// Создаёт JWT токен для пользователя (живёт 30 дней)
+// Создаёт JWT токен для пользователя. Срок — практически «навсегда» (10 лет),
+// чтобы не выкидывать людей каждый месяц. Выход — только через кнопку «Выйти».
 export async function createToken(user) {
   return new SignJWT({ userId: user.id, phone: user.phone, role: user.role })
     .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('30d')
+    .setExpirationTime('3650d')
     .sign(secret)
 }
 
