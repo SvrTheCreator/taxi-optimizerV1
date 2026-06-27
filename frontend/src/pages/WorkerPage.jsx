@@ -221,12 +221,8 @@ export default function WorkerPage() {
   // загрузился сейчас ИЛИ поднят из кеша) и адреса в нём нет. Иначе при упавшем
   // запросе профиля (мобильный/отключения) приложение ложно просило адрес заново.
   const showAddressOnboarding = !hasAddress && (profileLoaded || profile != null)
-  const canChangeAddress = !hasAddress || !profile?.home_updated ||
-    (Date.now() - new Date(profile.home_updated).getTime()) > 30 * 24 * 60 * 60 * 1000
-
-  const nextChangeDate = profile?.home_updated
-    ? new Date(new Date(profile.home_updated).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ru')
-    : null
+  // Смена адреса («Я переехал») доступна всегда — фильтр это одобрение админа,
+  // а не таймер. 30-дневный кулдаун убрали.
 
   // Дедлайн 18:00 МСК — пересчитывается при каждом автообновлении (раз в 10 сек)
   const afterDeadline = isAfterDeadline()
@@ -349,9 +345,7 @@ export default function WorkerPage() {
               <div className="accordion-block">
                 <h3>Домашний адрес</h3>
                 <p className="current-address">{profile.home_address}</p>
-                {!canChangeAddress ? (
-                  <p className="address-cooldown">Смена доступна: {nextChangeDate}</p>
-                ) : !movingMode ? (
+                {!movingMode ? (
                   <button
                     className="moved-btn"
                     disabled={afterDeadline}
