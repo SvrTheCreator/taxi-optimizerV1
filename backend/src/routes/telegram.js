@@ -7,7 +7,7 @@ import { sendMessage, botUsername } from '../lib/telegram.js'
 function publicUrl() {
   if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/$/, '')
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return 'https://taxi-optimizer-v1.vercel.app'
+  return 'https://taxioptimizer.ru'
 }
 
 const router = Router()
@@ -28,7 +28,6 @@ function normalizePhone(phone) {
 }
 
 // POST /api/telegram/bind/start — авторизованный юзер начинает привязку
-// Возвращает deep-link, по которому юзер открывает бота
 router.post('/bind/start', authMiddleware, async (req, res) => {
   const userId = req.user.userId
   const token = genToken()
@@ -73,19 +72,11 @@ router.delete('/me', authMiddleware, async (req, res) => {
   res.json({ ok: true })
 })
 
-// POST /api/telegram/webhook — приёмник апдейтов от Telegram
-// Защищено заголовком X-Telegram-Bot-Api-Secret-Token (выставляется в setWebhook)
-router.post('/webhook', async (req, res) => {
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET
-  if (secret && req.headers['x-telegram-bot-api-secret-token'] !== secret) {
-    return res.status(401).json({ error: 'unauthorized' })
-  }
-
-  const update = req.body
+// Обработка одного апдейта Telegram. Используется И webhook'ом, И long-polling'ом.
+// Ничего не возвращает наружу — шлёт сообщения сама. Не должна кидать (ловим выше).
+export async function handleUpdate(update) {
   const message = update?.message
-  if (!message) {
-    return res.json({ ok: true })
-  }
+  if (!message) return
 
   const chatId = message.chat.id
 
@@ -95,13 +86,13 @@ router.post('/webhook', async (req, res) => {
     // Безопасность: принимаем только контакт самого пользователя, не чужой
     if (c.user_id && c.user_id !== message.from?.id) {
       await sendMessage(chatId, '❌ Можно поделиться только своим контактом.')
-      return res.json({ ok: true })
+      return
     }
 
     const phone = normalizePhone(c.phone_number)
     if (phone.length !== 11 || !phone.startsWith('7')) {
       await sendMessage(chatId, '❌ Поддерживаются только российские номера (+7).')
-      return res.json({ ok: true })
+      return
     }
 
     const name = (c.first_name || message.from?.first_name || 'Пользователь').trim()
@@ -115,7 +106,6 @@ router.post('/webhook', async (req, res) => {
 
     if (existing) {
       if (existing.telegram_chat_id) {
-        // Уже привязан — ничего не делаем
         if (existing.telegram_chat_id === chatId) {
           await sendMessage(chatId,
             '✅ Этот аккаунт уже привязан к твоему Telegram.\n\nЕсли забыл PIN — на сайте нажми <b>«Забыл PIN»</b>.',
@@ -127,7 +117,7 @@ router.post('/webhook', async (req, res) => {
             { reply_markup: { remove_keyboard: true } }
           )
         }
-        return res.json({ ok: true })
+        return
       }
 
       // Аккаунт есть, TG не привязан — привязываем сейчас
@@ -137,7 +127,7 @@ router.post('/webhook', async (req, res) => {
         'Теперь на сайте нажми <b>«Забыл PIN»</b> на странице входа — я пришлю сюда код для смены PIN.',
         { reply_markup: { remove_keyboard: true } }
       )
-      return res.json({ ok: true })
+      return
     }
 
     // Инвалидируем старые сессии этого телефона
@@ -156,7 +146,7 @@ router.post('/webhook', async (req, res) => {
 
     if (error) {
       await sendMessage(chatId, '❌ Ошибка сервера. Попробуй ещё раз.')
-      return res.json({ ok: true })
+      return
     }
 
     const link = `${publicUrl()}/?regToken=${token}`
@@ -164,24 +154,18 @@ router.post('/webhook', async (req, res) => {
       `✅ Получил контакт.\n\nОткрой ссылку, чтобы придумать PIN и закончить регистрацию:\n${link}\n\nСсылка действует ${REGISTRATION_TTL_MIN} минут.`,
       { reply_markup: { remove_keyboard: true } }
     )
-    return res.json({ ok: true })
+    return
   }
 
-  if (!message.text) {
-    return res.json({ ok: true })
-  }
+  if (!message.text) return
 
   const text = message.text.trim()
 
-  // /start <payload> — варианты:
-  //   /start register — начало регистрации (просим контакт)
-  //   /start <hex32>  — привязка существующего аккаунта
-  //   /start          — справка
+  // /start <payload>
   const startMatch = text.match(/^\/start(?:\s+(\S+))?$/)
   if (startMatch) {
     const token = startMatch[1]
 
-    // Регистрация — просим контакт через keyboard
     if (token === 'register') {
       await sendMessage(chatId,
         'Привет! Чтобы зарегистрироваться, поделись своим номером — нажми кнопку внизу.\n\n' +
@@ -194,7 +178,7 @@ router.post('/webhook', async (req, res) => {
           },
         }
       )
-      return res.json({ ok: true })
+      return
     }
 
     if (!token) {
@@ -204,7 +188,7 @@ router.post('/webhook', async (req, res) => {
         '• <b>Восстановление PIN</b> — на странице входа нажми «Забыл PIN»\n' +
         '• <b>Привязка существующего аккаунта</b> — в профиле нажми «Привязать Telegram»'
       )
-      return res.json({ ok: true })
+      return
     }
 
     const { data: binding } = await supabase
@@ -215,20 +199,17 @@ router.post('/webhook', async (req, res) => {
 
     if (!binding) {
       await sendMessage(chatId, '❌ Ссылка не найдена. Запроси новую в приложении.')
-      return res.json({ ok: true })
+      return
     }
-
     if (binding.used_at) {
       await sendMessage(chatId, '❌ Эта ссылка уже использована. Запроси новую в приложении.')
-      return res.json({ ok: true })
+      return
     }
-
     if (new Date(binding.expires_at) < new Date()) {
       await sendMessage(chatId, '❌ Срок действия ссылки истёк. Запроси новую в приложении.')
-      return res.json({ ok: true })
+      return
     }
 
-    // Привязываем
     await supabase.from('users').update({ telegram_chat_id: chatId }).eq('id', binding.user_id)
     await supabase
       .from('telegram_binding_tokens')
@@ -239,11 +220,23 @@ router.post('/webhook', async (req, res) => {
       '✅ Telegram привязан!\n\n' +
       'Теперь если забудешь PIN — на странице входа нажми «Забыли PIN?» и получишь код сюда.'
     )
-    return res.json({ ok: true })
+    return
   }
 
-  // Остальное игнорируем, но дружелюбно отвечаем
   await sendMessage(chatId, 'Я понимаю только команду /start. Зайди в приложение, чтобы начать привязку.')
+}
+
+// POST /api/telegram/webhook — приёмник апдейтов (оставлен для совместимости; на VPS используем polling)
+router.post('/webhook', async (req, res) => {
+  const secret = process.env.TELEGRAM_WEBHOOK_SECRET
+  if (secret && req.headers['x-telegram-bot-api-secret-token'] !== secret) {
+    return res.status(401).json({ error: 'unauthorized' })
+  }
+  try {
+    await handleUpdate(req.body)
+  } catch (err) {
+    console.error('tg webhook handler error:', err?.message)
+  }
   res.json({ ok: true })
 })
 

@@ -30,6 +30,25 @@ export async function setWebhook(url, secretToken) {
   return res.json()
 }
 
+export async function deleteWebhook() {
+  // drop_pending_updates=false — НЕ теряем застрявшие апдейты: после старта polling
+  // сервер их обработает (тем, кто пытался зарегаться, прилетит свежая ссылка).
+  const res = await fetch(`${TG_API}${token()}/deleteWebhook?drop_pending_updates=false`)
+  return res.json()
+}
+
+// Long-polling: один запрос ждёт до `timeout` секунд новых апдейтов.
+export async function getUpdates(offset, timeout = 50) {
+  const url = `${TG_API}${token()}/getUpdates?timeout=${timeout}` +
+    (offset ? `&offset=${offset}` : '') +
+    `&allowed_updates=${encodeURIComponent('["message"]')}`
+  // фетч-таймаут чуть больше long-poll timeout, чтобы не рвать соединение раньше Telegram
+  const res = await fetch(url, { signal: AbortSignal.timeout((timeout + 10) * 1000) })
+  const data = await res.json()
+  if (!data.ok) throw new Error(`getUpdates failed: ${data.description}`)
+  return data.result
+}
+
 export function botUsername() {
   return process.env.TELEGRAM_BOT_USERNAME || ''
 }

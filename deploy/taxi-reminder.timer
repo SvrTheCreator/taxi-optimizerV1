@@ -1,0 +1,12 @@
+# Таймер: каждый день в 13:00 UTC = 16:00 МСК.
+# (timezone-suffix UTC поддерживается systemd >= 252; на Ubuntu 26.04 есть.)
+
+[Unit]
+Description=Taxi Optimizer — таймер ежедневного напоминания (16:00 МСК)
+
+[Timer]
+OnCalendar=*-*-* 13:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

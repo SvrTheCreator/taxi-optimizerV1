@@ -175,6 +175,23 @@ router.post('/:id/reset-pin-code', adminOnly, async (req, res) => {
   res.json({ code, name: user.name, ttlHours: PIN_RESET_TTL_HOURS })
 })
 
+// PATCH /api/users/:id/address — админ вписывает/меняет адрес работнику напрямую
+// (для людей с кнопочными телефонами / без приложения). Без дедлайна и без одобрения.
+router.patch('/:id/address', adminOnly, async (req, res) => {
+  const { address, lat, lon } = req.body
+  if (!address || lat == null || lon == null) {
+    return res.status(400).json({ error: 'Нужны address, lat и lon' })
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update({ home_address: address, home_lat: lat, home_lon: lon, home_updated: new Date().toISOString() })
+    .eq('id', req.params.id)
+
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ ok: true })
+})
+
 // GET /api/users — список всех (только админ)
 router.get('/', adminOnly, async (req, res) => {
   const { data, error } = await supabase

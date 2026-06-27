@@ -63,6 +63,7 @@ export default function WorkerPage() {
   const [tempLoading, setTempLoading] = useState(false)
   const [useTemp, setUseTemp] = useState(false)
   const [showAddresses, setShowAddresses] = useState(false)
+  const [movingMode, setMovingMode] = useState(false) // режим «я переехал» — открыт намеренно
 
   // (даты берутся из DateSlider)
 
@@ -172,6 +173,7 @@ export default function WorkerPage() {
         if (res?.ok) {
           toast('Заявка отправлена! Ожидайте подтверждения.', 'info')
           setNewAddress('')
+          setMovingMode(false)
         } else {
           const data = await res?.json()
           toast(data?.error || 'Ошибка', 'error')
@@ -347,15 +349,30 @@ export default function WorkerPage() {
               <div className="accordion-block">
                 <h3>Домашний адрес</h3>
                 <p className="current-address">{profile.home_address}</p>
-                {canChangeAddress ? (
+                {!canChangeAddress ? (
+                  <p className="address-cooldown">Смена доступна: {nextChangeDate}</p>
+                ) : !movingMode ? (
+                  <button
+                    className="moved-btn"
+                    disabled={afterDeadline}
+                    onClick={() => {
+                      if (window.confirm('Сменить домашний адрес? Делай это, только если действительно переехал — заявка уйдёт админу на подтверждение.')) {
+                        setMovingMode(true)
+                      }
+                    }}
+                  >
+                    🏠 Я переехал на новый адрес
+                  </button>
+                ) : (
                   <div className="address-change">
                     <AddressInput value={newAddress} onChange={setNewAddress} placeholder="Новый адрес" />
                     <button onClick={submitAddress} disabled={addressLoading || !newAddress || afterDeadline}>
-                      {addressLoading ? 'Сохраняем...' : 'Сменить'}
+                      {addressLoading ? 'Отправляем...' : 'Отправить заявку админу'}
+                    </button>
+                    <button type="button" className="link-btn" onClick={() => { setMovingMode(false); setNewAddress('') }}>
+                      Отмена
                     </button>
                   </div>
-                ) : (
-                  <p className="address-cooldown">Смена доступна: {nextChangeDate}</p>
                 )}
               </div>
 

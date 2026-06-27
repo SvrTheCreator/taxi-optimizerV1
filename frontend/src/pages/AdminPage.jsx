@@ -106,6 +106,24 @@ export default function AdminPage() {
     try { await navigator.clipboard.writeText(code); toast('Код скопирован', 'info') } catch { /* clipboard может быть недоступен */ }
   }
 
+  const [editAddrId, setEditAddrId] = useState(null)
+  const [editAddr, setEditAddr] = useState('')
+  const [editAddrBusy, setEditAddrBusy] = useState(false)
+  async function saveWorkerAddress(id) {
+    if (!editAddr) return
+    setEditAddrBusy(true)
+    try {
+      const coords = await geocodeAddress(editAddr)
+      const res = await authFetch(`/api/users/${id}/address`, {
+        method: 'PATCH',
+        body: JSON.stringify({ address: editAddr, lat: coords.lat, lon: coords.lon }),
+      })
+      if (res?.ok) { toast('Адрес сохранён', 'success'); setEditAddrId(null); setEditAddr(''); loadWorkers() }
+      else toast('Не удалось сохранить', 'error')
+    } catch { toast('Не удалось определить адрес', 'error') }
+    setEditAddrBusy(false)
+  }
+
   const [lastResetCode, setLastResetCode] = useState(null) // { name, code, ttlHours }
   async function resetWorkerPin(id) {
     const res = await authFetch(`/api/users/${id}/reset-pin-code`, { method: 'POST' })
@@ -558,26 +576,42 @@ export default function AdminPage() {
           <h2>Работники ({workers.length})</h2>
 
           {workers.map(w => (
-            <div key={w.id} className="worker-card">
-              <div>
-                <strong>{w.name}</strong> ({formatPhone(w.phone)})
-                <br />
-                <span style={w.home_address ? {} : { color: '#e53935', fontWeight: 600 }}>
-                  {w.home_address || 'нет адреса!'}
-                </span>
-                <br />
-                <small>Роль: {w.role}</small>
+            <div key={w.id}>
+              <div className="worker-card">
+                <div>
+                  <strong>{w.name}</strong> ({formatPhone(w.phone)})
+                  <br />
+                  <span style={w.home_address ? {} : { color: '#e53935', fontWeight: 600 }}>
+                    {w.home_address || 'нет адреса!'}
+                  </span>
+                  <br />
+                  <small>Роль: {w.role}</small>
+                </div>
+                {w.role !== 'admin' && (
+                  <div className="worker-actions">
+                    <button className="btn-small" onClick={() => { setEditAddrId(editAddrId === w.id ? null : w.id); setEditAddr(w.home_address || '') }}>
+                      Адрес
+                    </button>
+                    <button className="btn-small" onClick={() => resetWorkerPin(w.id)}>
+                      Сбросить PIN
+                    </button>
+                    <button
+                      className={`btn-small ${confirmDelete === w.id ? 'btn-danger-confirm' : 'btn-danger'}`}
+                      onClick={() => handleDeleteWorker(w.id)}
+                    >
+                      {confirmDelete === w.id ? 'Точно?' : 'Удалить'}
+                    </button>
+                  </div>
+                )}
               </div>
-              {w.role !== 'admin' && (
-                <div className="worker-actions">
-                  <button className="btn-small" onClick={() => resetWorkerPin(w.id)}>
-                    Сбросить PIN
+              {editAddrId === w.id && (
+                <div className="address-change" style={{ marginTop: 8, marginBottom: 12 }}>
+                  <AddressInput value={editAddr} onChange={setEditAddr} placeholder="Адрес работника" />
+                  <button onClick={() => saveWorkerAddress(w.id)} disabled={editAddrBusy || !editAddr}>
+                    {editAddrBusy ? 'Сохраняем...' : 'Сохранить адрес'}
                   </button>
-                  <button
-                    className={`btn-small ${confirmDelete === w.id ? 'btn-danger-confirm' : 'btn-danger'}`}
-                    onClick={() => handleDeleteWorker(w.id)}
-                  >
-                    {confirmDelete === w.id ? 'Точно?' : 'Удалить'}
+                  <button type="button" className="link-btn" onClick={() => { setEditAddrId(null); setEditAddr('') }}>
+                    Отмена
                   </button>
                 </div>
               )}

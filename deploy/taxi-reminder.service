@@ -1,0 +1,15 @@
+# Разовый запуск ежедневного напоминания в Telegram.
+# Ставится вместе с taxi-reminder.timer:
+#   sudo cp deploy/taxi-reminder.* /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now taxi-reminder.timer
+# Ручной прогон: sudo systemctl start taxi-reminder.service ; journalctl -u taxi-reminder
+
+[Unit]
+Description=Taxi Optimizer — ежедневное Telegram-напоминание (до 18:00)
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/taxi-optimizerV1/backend
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node src/scripts/dailyReminder.js

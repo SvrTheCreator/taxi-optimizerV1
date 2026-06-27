@@ -13,6 +13,7 @@ import usersRouter from './routes/users.js'
 import addressRequestsRouter from './routes/addressRequests.js'
 import notificationsRouter from './routes/notifications.js'
 import telegramRouter from './routes/telegram.js'
+import { startTelegramPolling } from './lib/telegramPoll.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -49,3 +50,10 @@ if (process.env.NODE_ENV === 'production') {
 app.listen(PORT, () => {
   console.log(`✓ Backend запущен на http://localhost:${PORT}`)
 })
+
+// Telegram через long-polling — только в проде (на VPS), чтобы локальная
+// разработка не «воровала» апдейты у боевого бота (Telegram отдаёт getUpdates
+// только одному потребителю).
+if (process.env.NODE_ENV === 'production') {
+  startTelegramPolling()
+}

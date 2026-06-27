@@ -1136,6 +1136,19 @@ button { cursor: pointer; border: none; font-family: inherit; }
   border-radius: 8px;
 }
 
+.moved-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px;
+  background: transparent;
+  color: var(--gray-500);
+  border: 1px dashed var(--gray-300, #ccc);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+}
+.moved-btn:disabled { opacity: 0.5; }
+
 .cancel-shift-btn {
   width: 100%;
   margin-top: 12px;
