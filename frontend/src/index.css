@@ -1136,6 +1136,26 @@ button { cursor: pointer; border: none; font-family: inherit; }
   border-radius: 8px;
 }
 
+.manual-block {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  margin: 12px 0;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.manual-body { padding: 0 14px 12px; }
+.manual-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--gray-100);
+}
+.manual-info { flex: 1; min-width: 0; }
+.manual-info small { color: var(--gray-500); }
+.manual-time { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--gray-200, #ddd); }
+.manual-add { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+
 .moved-btn {
   width: 100%;
   margin-top: 4px;

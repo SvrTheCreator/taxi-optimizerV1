@@ -45,6 +45,13 @@ export default function AdminPage() {
   const [showTaxiPopup, setShowTaxiPopup] = useState(false)
   const [myShift, setMyShift] = useState(null)
   const [shiftLoading, setShiftLoading] = useState(false)
+  // «Кнопочные» работники без приложения
+  const [manualRoster, setManualRoster] = useState([])
+  const [manualDay, setManualDay] = useState([])
+  const [showManual, setShowManual] = useState(false)
+  const [mwName, setMwName] = useState('')
+  const [mwAddr, setMwAddr] = useState('')
+  const [mwBusy, setMwBusy] = useState(false)
 
   // (даты берутся из DateSlider)
 
@@ -56,6 +63,45 @@ export default function AdminPage() {
   }, [authFetch, selectedDate])
 
   const prevReqPendingRef = useRef(null)
+  const loadManualRoster = useCallback(async () => {
+    const res = await authFetch('/api/manual-workers')
+    if (res?.ok) setManualRoster(await res.json())
+  }, [authFetch])
+  const loadManualDay = useCallback(async () => {
+    const res = await authFetch(`/api/manual-workers/day?date=${selectedDate}`)
+    if (res?.ok) setManualDay(await res.json())
+  }, [authFetch, selectedDate])
+
+  async function addManualWorker() {
+    if (!mwName.trim() || !mwAddr.trim()) return
+    setMwBusy(true)
+    try {
+      const coords = await geocodeAddress(mwAddr)
+      const res = await authFetch('/api/manual-workers', {
+        method: 'POST',
+        body: JSON.stringify({ name: mwName.trim(), address: mwAddr.trim(), lat: coords.lat, lon: coords.lon }),
+      })
+      if (res?.ok) { toast('Добавлен в список', 'success'); setMwName(''); setMwAddr(''); loadManualRoster() }
+      else toast('Не удалось добавить', 'error')
+    } catch { toast('Не удалось определить адрес', 'error') }
+    setMwBusy(false)
+  }
+  async function deleteManualWorker(id) {
+    await authFetch(`/api/manual-workers/${id}`, { method: 'DELETE' })
+    loadManualRoster(); loadManualDay()
+  }
+  async function setManualAssign(workerId, time) {
+    const cur = manualDay.find(d => d.workerId === workerId)
+    if (!time) {
+      if (cur) await authFetch(`/api/manual-workers/assign/${cur.assignId}`, { method: 'DELETE' })
+    } else {
+      await authFetch(`/api/manual-workers/${workerId}/assign`, {
+        method: 'POST', body: JSON.stringify({ date: selectedDate, time }),
+      })
+    }
+    loadManualDay()
+  }
+
   const loadRequests = useCallback(async () => {
     const res = await authFetch('/api/address-requests')
     if (res?.ok) {
@@ -104,24 +150,6 @@ export default function AdminPage() {
 
   async function copyCode(code) {
     try { await navigator.clipboard.writeText(code); toast('Код скопирован', 'info') } catch { /* clipboard может быть недоступен */ }
-  }
-
-  const [editAddrId, setEditAddrId] = useState(null)
-  const [editAddr, setEditAddr] = useState('')
-  const [editAddrBusy, setEditAddrBusy] = useState(false)
-  async function saveWorkerAddress(id) {
-    if (!editAddr) return
-    setEditAddrBusy(true)
-    try {
-      const coords = await geocodeAddress(editAddr)
-      const res = await authFetch(`/api/users/${id}/address`, {
-        method: 'PATCH',
-        body: JSON.stringify({ address: editAddr, lat: coords.lat, lon: coords.lon }),
-      })
-      if (res?.ok) { toast('Адрес сохранён', 'success'); setEditAddrId(null); setEditAddr(''); loadWorkers() }
-      else toast('Не удалось сохранить', 'error')
-    } catch { toast('Не удалось определить адрес', 'error') }
-    setEditAddrBusy(false)
   }
 
   const [lastResetCode, setLastResetCode] = useState(null) // { name, code, ttlHours }
@@ -188,6 +216,8 @@ export default function AdminPage() {
   useEffect(() => { loadProfile() }, [loadProfile])
   useEffect(() => { loadShifts() }, [loadShifts])
   useEffect(() => { loadNotifications() }, [loadNotifications])
+  useEffect(() => { loadManualRoster() }, [loadManualRoster])
+  useEffect(() => { loadManualDay() }, [loadManualDay])
   useEffect(() => {
     if (tab === 'requests') loadRequests()
     if (tab === 'workers') { loadWorkers(); loadRegCodes() }
@@ -195,16 +225,24 @@ export default function AdminPage() {
 
   // Автообновление каждые 15 секунд (silent — без мерцания)
   useEffect(() => {
-    const interval = setInterval(() => { loadShifts(true); loadNotifications(); loadRequests() }, 10000)
+    const interval = setInterval(() => { loadShifts(true); loadNotifications(); loadRequests(); loadManualDay() }, 10000)
     return () => clearInterval(interval)
-  }, [loadShifts, loadNotifications, loadRequests])
+  }, [loadShifts, loadNotifications, loadRequests, loadManualDay])
 
-  // Группируем смены по времени
+  // Группируем смены по времени (зарегистрированные + «кнопочные» вручную)
   const shiftsByTime = {}
   for (const s of shifts) {
     if (!shiftsByTime[s.shift_time]) shiftsByTime[s.shift_time] = []
     shiftsByTime[s.shift_time].push(s)
   }
+  for (const m of manualDay) {
+    if (!shiftsByTime[m.time]) shiftsByTime[m.time] = []
+    shiftsByTime[m.time].push({
+      id: 'm_' + m.assignId, assignId: m.assignId, manual: true, shift_time: m.time,
+      users: { name: m.name }, display_address: m.address,
+    })
+  }
+  const totalCount = shifts.length + manualDay.length
 
   // Оптимизация
   async function handleOptimize() {
@@ -213,13 +251,19 @@ export default function AdminPage() {
     if (!res?.ok) { setOptimizing(false); return }
     const entries = await res.json()
 
-    if (entries.length === 0) {
+    // Добавляем «кнопочных» вручную (с координатами) в оптимизацию
+    const manualEntries = manualDay
+      .filter(m => m.lat != null && m.lon != null)
+      .map((m, i) => ({ id: 100000 + i, address: m.address, time: m.time, lat: m.lat, lon: m.lon }))
+    const allEntries = [...entries, ...manualEntries]
+
+    if (allEntries.length === 0) {
       alert('Нет записей с адресами на эту дату')
       setOptimizing(false)
       return
     }
 
-    const result = optimize(entries, WORK_COORDS)
+    const result = optimize(allEntries, WORK_COORDS)
     dispatch({ type: 'SET_RESULT', payload: result })
     // Сохраняем дату оптимизации
     localStorage.setItem('taxi_result_date', selectedDate)
@@ -437,12 +481,18 @@ export default function AdminPage() {
                         <span>
                           {s.users?.name} — {s.display_address || s.users?.home_address || 'адрес не указан'}
                           {s.use_temp && <span className="temp-badge">врем.</span>}
+                          {s.manual && <span className="temp-badge">вручную</span>}
                         </span>
                         <button
                           className="btn-small btn-danger"
                           onClick={async () => {
-                            await authFetch(`/api/shifts/${s.id}`, { method: 'DELETE' })
-                            loadShifts()
+                            if (s.manual) {
+                              await authFetch(`/api/manual-workers/assign/${s.assignId}`, { method: 'DELETE' })
+                              loadManualDay()
+                            } else {
+                              await authFetch(`/api/shifts/${s.id}`, { method: 'DELETE' })
+                              loadShifts()
+                            }
                           }}
                         >
                           Убрать
@@ -453,15 +503,50 @@ export default function AdminPage() {
                 </div>
               ))}
 
-              {shifts.length === 0 && <p className="hint">Нет записей на эту дату. Работники записываются через своё приложение.</p>}
+              {totalCount === 0 && <p className="hint">Нет записей на эту дату. Работники записываются через своё приложение.</p>}
 
-              {shifts.length > 0 && (
+              {/* Кнопочные работники без приложения */}
+              <div className="manual-block">
+                <button className="accordion-toggle" onClick={() => setShowManual(!showManual)}>
+                  <span>➕ Без приложения (кнопочные)</span>
+                  <span className={`accordion-arrow ${showManual ? 'open' : ''}`}>▼</span>
+                </button>
+                {showManual && (
+                  <div className="manual-body">
+                    <p className="hint" style={{ textAlign: 'left', padding: '4px 0' }}>
+                      Добавь человека один раз — потом просто выбирай ему время на нужный день.
+                    </p>
+                    {manualRoster.map(p => {
+                      const cur = manualDay.find(d => d.workerId === p.id)
+                      return (
+                        <div key={p.id} className="manual-row">
+                          <div className="manual-info"><strong>{p.name}</strong><br /><small>{p.address}</small></div>
+                          <select className="manual-time" value={cur?.time || ''} onChange={e => setManualAssign(p.id, e.target.value)}>
+                            <option value="">— не едет —</option>
+                            {SHIFT_TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                          <button className="btn-notif-delete" title="Удалить из списка" onClick={() => deleteManualWorker(p.id)}>×</button>
+                        </div>
+                      )
+                    })}
+                    <div className="manual-add">
+                      <input type="text" className="address-input" placeholder="Имя" value={mwName} onChange={e => setMwName(e.target.value)} />
+                      <AddressInput value={mwAddr} onChange={setMwAddr} placeholder="Адрес" />
+                      <button onClick={addManualWorker} disabled={mwBusy || !mwName || !mwAddr}>
+                        {mwBusy ? 'Добавляем...' : 'Добавить в список'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {totalCount > 0 && (
                 <button
                   className="optimize-btn"
                   onClick={handleOptimize}
                   disabled={optimizing}
                 >
-                  {optimizing ? 'Оптимизируем...' : `Оптимизировать (${shifts.length} чел.)`}
+                  {optimizing ? 'Оптимизируем...' : `Оптимизировать (${totalCount} чел.)`}
                 </button>
               )}
 
@@ -469,7 +554,7 @@ export default function AdminPage() {
                 const resultDate = localStorage.getItem('taxi_result_date')
                 if (resultDate !== selectedDate) return null
                 const optimizedCount = state.result.reduce((sum, g) => sum + g.taxis.reduce((s, t) => s + t.addresses.length, 0), 0)
-                const currentCount = shifts.length
+                const currentCount = totalCount
                 const changed = optimizedCount !== currentCount
                 return (
                   <div className="last-result-block">
@@ -576,42 +661,26 @@ export default function AdminPage() {
           <h2>Работники ({workers.length})</h2>
 
           {workers.map(w => (
-            <div key={w.id}>
-              <div className="worker-card">
-                <div>
-                  <strong>{w.name}</strong> ({formatPhone(w.phone)})
-                  <br />
-                  <span style={w.home_address ? {} : { color: '#e53935', fontWeight: 600 }}>
-                    {w.home_address || 'нет адреса!'}
-                  </span>
-                  <br />
-                  <small>Роль: {w.role}</small>
-                </div>
-                {w.role !== 'admin' && (
-                  <div className="worker-actions">
-                    <button className="btn-small" onClick={() => { setEditAddrId(editAddrId === w.id ? null : w.id); setEditAddr(w.home_address || '') }}>
-                      Адрес
-                    </button>
-                    <button className="btn-small" onClick={() => resetWorkerPin(w.id)}>
-                      Сбросить PIN
-                    </button>
-                    <button
-                      className={`btn-small ${confirmDelete === w.id ? 'btn-danger-confirm' : 'btn-danger'}`}
-                      onClick={() => handleDeleteWorker(w.id)}
-                    >
-                      {confirmDelete === w.id ? 'Точно?' : 'Удалить'}
-                    </button>
-                  </div>
-                )}
+            <div key={w.id} className="worker-card">
+              <div>
+                <strong>{w.name}</strong> ({formatPhone(w.phone)})
+                <br />
+                <span style={w.home_address ? {} : { color: '#e53935', fontWeight: 600 }}>
+                  {w.home_address || 'нет адреса!'}
+                </span>
+                <br />
+                <small>Роль: {w.role}</small>
               </div>
-              {editAddrId === w.id && (
-                <div className="address-change" style={{ marginTop: 8, marginBottom: 12 }}>
-                  <AddressInput value={editAddr} onChange={setEditAddr} placeholder="Адрес работника" />
-                  <button onClick={() => saveWorkerAddress(w.id)} disabled={editAddrBusy || !editAddr}>
-                    {editAddrBusy ? 'Сохраняем...' : 'Сохранить адрес'}
+              {w.role !== 'admin' && (
+                <div className="worker-actions">
+                  <button className="btn-small" onClick={() => resetWorkerPin(w.id)}>
+                    Сбросить PIN
                   </button>
-                  <button type="button" className="link-btn" onClick={() => { setEditAddrId(null); setEditAddr('') }}>
-                    Отмена
+                  <button
+                    className={`btn-small ${confirmDelete === w.id ? 'btn-danger-confirm' : 'btn-danger'}`}
+                    onClick={() => handleDeleteWorker(w.id)}
+                  >
+                    {confirmDelete === w.id ? 'Точно?' : 'Удалить'}
                   </button>
                 </div>
               )}

@@ -13,6 +13,7 @@ import usersRouter from './routes/users.js'
 import addressRequestsRouter from './routes/addressRequests.js'
 import notificationsRouter from './routes/notifications.js'
 import telegramRouter from './routes/telegram.js'
+import manualRouter from './routes/manual.js'
 import { startTelegramPolling } from './lib/telegramPoll.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -33,6 +34,7 @@ app.use('/api/users', usersRouter)
 app.use('/api/address-requests', addressRequestsRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/telegram', telegramRouter)
+app.use('/api/manual-workers', manualRouter)
 
 // Проверочный эндпоинт
 app.get('/health', (_req, res) => res.json({ ok: true }))

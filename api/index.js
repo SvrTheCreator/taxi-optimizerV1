@@ -7,6 +7,7 @@ import addressRequestsRouter from '../backend/src/routes/addressRequests.js'
 import notificationsRouter from '../backend/src/routes/notifications.js'
 import telegramRouter from '../backend/src/routes/telegram.js'
 import geocodeRouter from '../backend/src/routes/geocode.js'
+import manualRouter from '../backend/src/routes/manual.js'
 
 const app = express()
 app.use(cors())
@@ -19,6 +20,7 @@ app.use('/api/address-requests', addressRequestsRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/telegram', telegramRouter)
 app.use('/api/geocode', geocodeRouter)
+app.use('/api/manual-workers', manualRouter)
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
 
 export default app
