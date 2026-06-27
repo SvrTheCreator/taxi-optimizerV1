@@ -31,16 +31,18 @@ Frontend proxies `/api/*` to `localhost:3001` (see `frontend/vite.config.js`), s
 
 **Lint:** `cd frontend && npm run lint` — note: the repo currently has **pre-existing** lint errors (react-hooks purity on `Date.now()`, a couple of unused vars). Lint is **not** a clean gate; the real gate is the Vite build.
 
-**Build (Vercel runs this):** `npm run build` (root) — installs backend+frontend deps and builds `frontend/dist`.
+**Build:** `npm run build` (root) — installs backend+frontend deps and builds `frontend/dist`.
 
-## Two server entrypoints (IMPORTANT)
+## Production is the RU VPS (`taxioptimizer.ru`) — IMPORTANT
 
-There are **two** Express apps, and they mount different routes:
+As of 2026-06-25 prod moved off Vercel to a **Russian VPS** so the app works on mobile without VPN (RKN throttling of foreign hosts). **Vercel now just 308-redirects everything to `taxioptimizer.ru`** (`vercel.json`), so the Vercel serverless app no longer serves traffic.
 
-- **`backend/src/index.js`** — local dev only. Mounts **all** routes including the legacy geocoding ones (`/api/geocode`, `/api/suggest`, `/api/addresses`, `/api/sessions`) and serves `frontend/dist` as static when `NODE_ENV=production`.
-- **`api/index.js`** — the **Vercel serverless** entrypoint (`vercel.json` routes `/api/*` here). Mounts **only** the multi-user routes: `auth`, `shifts`, `users`, `address-requests`, `notifications`, `telegram`, plus `/api/health`.
+- **`backend/src/index.js`** — the **prod server** (and local dev). With `NODE_ENV=production` it mounts **all** routes (`auth`, `shifts`, `users`, `address-requests`, `notifications`, `telegram`, `geocode`, `suggest`, `addresses`, `sessions`, `/health`) **and** serves `frontend/dist` static. Runs under systemd as `taxi-optimizer`, behind Caddy (HTTPS).
+- **`api/index.js`** — the old Vercel serverless entry. **Effectively retired** (Vercel redirects before it runs); kept in the repo. If you ever re-enable Vercel, mount new routes here too.
 
-Consequence: in **production**, `/api/geocode`, `/api/suggest`, `/api/addresses`, `/api/sessions` **do not exist**. The frontend degrades gracefully — geocoding and suggestions fall back to the **Yandex Maps JS API client-side** (see below). If you add a new route, mount it in **both** files (or it won't exist in prod).
+Full VPS runbook: `deploy/DEPLOY.md` (Caddy, systemd, env). Deploy flow: push to `main`, then run **`taxi-update`** on the server (`git pull` → `npm install` → rebuild frontend → restart service). See `.claude/MEMORY.md` → "VPS deploy" for host/IP, deploy-key, and the Telegram `/etc/hosts` IP-pin.
+
+Geocoding/suggestions in the browser use the **Yandex Maps JS API client-side** primarily; `/api/geocode` is a server-side REST fallback (currently flaky — likely wrong key type; non-critical).
 
 ## Auth & roles
 
@@ -97,27 +99,28 @@ Result is stored in `AppContext` + `localStorage` (`taxi_result_date`); `ResultP
 
 ## Geocoding & suggestions
 
-- **Address autocomplete:** `AddressInput` calls `ymaps.suggest()` (Yandex Maps JS API, client-side) directly, bounded to the Rostov bbox. Works in prod without a backend route.
-- **Geocoding:** `geocodeAddress` in `frontend/src/utils/api.js` tries `/api/geocode` (cache) first, then falls back to `ymaps.geocode()`. In prod the cache route 404s, so it's effectively always the client-side path.
-- Yandex Maps **JS API** key is hardcoded in `frontend/index.html` (browser-visible by design). The **Geocoder REST** key (`YANDEX_API_KEY`) is only used by the dev-only backend geocode route.
+- **Address autocomplete:** `AddressInput` calls `ymaps.suggest()` (Yandex Maps JS API, client-side) directly, bounded to the Rostov bbox.
+- **Geocoding:** `geocodeAddress` in `frontend/src/utils/api.js` tries **client `ymaps.geocode()` first** (precise, with a 10s timeout so the spinner can't hang), then falls back to server `/api/geocode` (Yandex REST, `backend/src/routes/geocode.js`). The server fallback is currently flaky (likely the JS key isn't a valid REST-geocoder key) — non-critical since the client path works.
+- Yandex Maps **JS API** key is hardcoded in `frontend/index.html` (browser-visible by design) and has **no referer restriction** (works on any domain).
 
 ## Deployment
 
-- **Vercel**, builds from `main`. `vercel.json` builds `api/index.js` (`@vercel/node`, with `includeFiles: backend/src/**`) and `frontend/` (`@vercel/static-build`, `distDir: dist`). Pushing to `main` auto-deploys prod.
-- **Prod:** `taxi-optimizer-v1.vercel.app`. **Stable fallback:** `taxi-optimizer-v1-stable.vercel.app` (git branch `stable`, holds old v1). Repo: `github.com/SvrTheCreator/taxi-optimizerV1`.
-- Supabase free tier **pauses on inactivity** → all DB calls fail (a past outage cause). Restore the project in the Supabase dashboard.
-- Changing a Vercel env var requires a **redeploy** to take effect (values are baked into the deployment).
-- `backend/data/` (legacy JSON via `backend/src/db/database.js`) is gitignored and unused in prod.
+- **Prod: RU VPS `taxioptimizer.ru`** (reg.ru, IP `194.67.103.173`, Ubuntu). `backend/src/index.js` under systemd (`taxi-optimizer`) serves API + `frontend/dist`; Caddy in front for HTTPS (Let's Encrypt). Runbook: `deploy/DEPLOY.md`.
+- **Deploy:** push to `main` → run **`taxi-update`** on the server (git pull + npm install + rebuild frontend + restart). The server is a git checkout (read-only deploy key). NOT auto-deploy.
+- **Vercel** (`taxi-optimizer-v1.vercel.app`): now **308-redirects to `taxioptimizer.ru`** (`vercel.json`) — no longer serves the app. Kept as the redirect + historical fallback. **Stable** branch (`taxi-optimizer-v1-stable.vercel.app`) holds old v1.
+- **Telegram is IP-blocked from this VPS** → pinned working IP in `/etc/hosts` (`149.154.167.220 api.telegram.org`). If the bot goes silent, re-pin.
+- Supabase free tier **pauses on inactivity** → all DB calls fail (a past outage cause; symptom: silent failures). Restore in the Supabase dashboard.
+- Repo: `github.com/SvrTheCreator/taxi-optimizerV1`.
 
 ## Environment variables
 
-**Vercel (backend/runtime):** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `JWT_SECRET`, `ADMIN_PHONE` (comma-sep), `YANDEX_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`, `ALERT_ADMIN_PHONES` (optional, comma-sep digits — restricts admin alert recipients). Optional: `PUBLIC_URL` (for bot deep links; otherwise derived).
-**Frontend build:** `VITE_TELEGRAM_BOT_USERNAME` (used by `RegisterPage`/`TelegramBindButton`).
-**Local dev (`backend/.env`):** at minimum `YANDEX_API_KEY`; add Supabase/JWT/Telegram vars to exercise those flows locally.
+Live in **`backend/.env` on the VPS** (loaded by dotenv; systemd cwd = `backend/`). Template: `backend/.env.example`.
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `JWT_SECRET` (keep identical to the old Vercel value so existing 30-day sessions stay valid), `ADMIN_PHONE` (comma-sep), `YANDEX_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` (= `taxi_optimizer_helper_bot`), `TELEGRAM_WEBHOOK_SECRET`, `ALERT_ADMIN_PHONES` (optional — restricts admin alert recipients), `PUBLIC_URL=https://taxioptimizer.ru`.
+**Frontend build:** `VITE_TELEGRAM_BOT_USERNAME=taxi_optimizer_helper_bot` (baked into `taxi-update`).
 
 ## Gotchas & dead code
 
-- New API route → mount in **both** `backend/src/index.js` and `api/index.js`.
-- `notifyAdmins` must be `await`ed before the response (serverless freeze).
-- `InputPage.jsx` is legacy v1 (not routed in `App.jsx`); the JSON `database.js` and the `geocode/suggest/addresses/sessions` routes are dev-only.
+- Prod server is `backend/src/index.js` (VPS). `api/index.js` (Vercel) is retired by the redirect — only matters if Vercel is re-enabled.
+- `notifyAdmins` must be `await`ed before the response (was for Vercel serverless freeze; harmless on VPS).
+- `InputPage.jsx` is legacy v1 (not routed in `App.jsx`); `database.js` JSON + `geocode/suggest/addresses/sessions` routes are legacy (the live frontend uses client-side ymaps).
 - The `ГАЙД.md` / `ГАЙД-для-чата.txt` files are user-facing worker guides (Russian); kept in the working dir but **not** committed to git.
