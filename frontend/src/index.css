@@ -1136,14 +1136,29 @@ button { cursor: pointer; border: none; font-family: inherit; }
   border-radius: 8px;
 }
 
-.manual-block {
-  background: var(--card-bg);
+.manual-add-btn {
+  width: 100%;
+  margin: 4px 0 14px;
+  padding: 12px;
+  background: #fff;
+  color: var(--text);
+  border: 1.5px solid var(--yellow);
   border-radius: var(--radius);
-  margin: 12px 0;
-  box-shadow: var(--shadow);
-  overflow: hidden;
+  font-weight: 700;
+  font-size: 14px;
 }
-.manual-body { padding: 0 14px 12px; }
+.manual-add-btn:active { transform: scale(0.99); }
+
+.manual-popup {
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+}
+.manual-list {
+  margin-top: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
 .manual-row {
   display: flex;
   align-items: center;

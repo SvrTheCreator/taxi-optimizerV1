@@ -449,6 +449,47 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Попап: люди без приложения */}
+      {showManual && (
+        <div className="popup-overlay" onClick={() => setShowManual(false)}>
+          <div className="popup-card manual-popup" onClick={e => e.stopPropagation()}>
+            <div className="popup-header">
+              <h2>Без приложения</h2>
+              <button className="btn-close" onClick={() => setShowManual(false)}>×</button>
+            </div>
+            <p className="hint" style={{ textAlign: 'left', padding: '0 0 10px' }}>
+              Добавь человека один раз — потом выбирай ему время на нужный день ({selectedDate.split('-').reverse().join('.')}).
+            </p>
+
+            {/* Добавление нового — сверху, чтобы подсказка адреса не обрезалась */}
+            <div className="manual-add">
+              <input type="text" className="address-input" placeholder="Имя" value={mwName} onChange={e => setMwName(e.target.value)} />
+              <AddressInput value={mwAddr} onChange={setMwAddr} placeholder="Адрес" />
+              <button className="optimize-btn" onClick={addManualWorker} disabled={mwBusy || !mwName || !mwAddr}>
+                {mwBusy ? 'Добавляем...' : 'Добавить в список'}
+              </button>
+            </div>
+
+            <div className="manual-list">
+              {manualRoster.length === 0 && <p className="hint">Список пуст</p>}
+              {manualRoster.map(p => {
+                const cur = manualDay.find(d => d.workerId === p.id)
+                return (
+                  <div key={p.id} className="manual-row">
+                    <div className="manual-info"><strong>{p.name}</strong><br /><small>{p.address}</small></div>
+                    <select className="manual-time" value={cur?.time || ''} onChange={e => setManualAssign(p.id, e.target.value)}>
+                      <option value="">— не едет —</option>
+                      {SHIFT_TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <button className="btn-notif-delete" title="Удалить из списка" onClick={() => deleteManualWorker(p.id)}>×</button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Табы */}
       <nav className="admin-tabs">
         <button className={tab === 'shifts' ? 'active' : ''} onClick={() => setTab('shifts')}>
@@ -469,6 +510,10 @@ export default function AdminPage() {
       {tab === 'shifts' && (
         <section>
           <DateSlider selected={selectedDate} onChange={setSelectedDate} />
+
+          <button className="manual-add-btn" onClick={() => setShowManual(true)}>
+            ➕ Добавить человека без приложения
+          </button>
 
           {loading ? <p>Загрузка...</p> : (
             <>
@@ -504,41 +549,6 @@ export default function AdminPage() {
               ))}
 
               {totalCount === 0 && <p className="hint">Нет записей на эту дату. Работники записываются через своё приложение.</p>}
-
-              {/* Кнопочные работники без приложения */}
-              <div className="manual-block">
-                <button className="accordion-toggle" onClick={() => setShowManual(!showManual)}>
-                  <span>➕ Без приложения (кнопочные)</span>
-                  <span className={`accordion-arrow ${showManual ? 'open' : ''}`}>▼</span>
-                </button>
-                {showManual && (
-                  <div className="manual-body">
-                    <p className="hint" style={{ textAlign: 'left', padding: '4px 0' }}>
-                      Добавь человека один раз — потом просто выбирай ему время на нужный день.
-                    </p>
-                    {manualRoster.map(p => {
-                      const cur = manualDay.find(d => d.workerId === p.id)
-                      return (
-                        <div key={p.id} className="manual-row">
-                          <div className="manual-info"><strong>{p.name}</strong><br /><small>{p.address}</small></div>
-                          <select className="manual-time" value={cur?.time || ''} onChange={e => setManualAssign(p.id, e.target.value)}>
-                            <option value="">— не едет —</option>
-                            {SHIFT_TIMES.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                          <button className="btn-notif-delete" title="Удалить из списка" onClick={() => deleteManualWorker(p.id)}>×</button>
-                        </div>
-                      )
-                    })}
-                    <div className="manual-add">
-                      <input type="text" className="address-input" placeholder="Имя" value={mwName} onChange={e => setMwName(e.target.value)} />
-                      <AddressInput value={mwAddr} onChange={setMwAddr} placeholder="Адрес" />
-                      <button onClick={addManualWorker} disabled={mwBusy || !mwName || !mwAddr}>
-                        {mwBusy ? 'Добавляем...' : 'Добавить в список'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {totalCount > 0 && (
                 <button
