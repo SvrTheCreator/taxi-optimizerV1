@@ -1,0 +1,13 @@
+# Авто-деплой при новом коммите в main. Ставится в /etc/systemd/system/.
+# Запускается таймером taxi-autodeploy.timer.
+# Логи: journalctl -u taxi-autodeploy -f
+
+[Unit]
+Description=Taxi Optimizer auto-deploy (git pull + rebuild on new commit)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# env bash — чтобы не зависеть от бита +x на файле (репозиторий с Windows)
+ExecStart=/usr/bin/env bash /opt/taxi-optimizerV1/deploy/taxi-autodeploy.sh

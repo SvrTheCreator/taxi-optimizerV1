@@ -1,0 +1,17 @@
+# Каждые 2 минуты проверяет origin/main и выкатывает новый коммит.
+# Установка:
+#   sudo cp /opt/taxi-optimizerV1/deploy/taxi-autodeploy.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now taxi-autodeploy.timer
+# Проверка: systemctl list-timers | grep autodeploy
+
+[Unit]
+Description=Poll git for new commits and auto-deploy Taxi Optimizer
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=taxi-autodeploy.service
+
+[Install]
+WantedBy=timers.target
