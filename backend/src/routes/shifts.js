@@ -99,19 +99,16 @@ router.post('/', async (req, res) => {
       .eq('id', req.user.userId)
       .single()
 
-    const { data: pendingReq } = await supabase
+    // Разрешаем несколько переносов в день: предыдущий НЕутверждённый запрос
+    // на этот день снимаем, чтобы у админа не копились устаревшие дубли —
+    // остаётся только актуальный запрос.
+    await supabase
       .from('notifications')
-      .select('id')
+      .delete()
       .eq('user_id', req.user.userId)
       .eq('is_read', false)
       .like('message', `%${ruDate}%`)
       .like('message', '%→%')
-      .limit(1)
-      .single()
-
-    if (pendingReq) {
-      return res.status(409).json({ error: 'У вас уже есть запрос на перенос на этот день' })
-    }
 
     await supabase.from('notifications').insert({
       user_id: req.user.userId,
