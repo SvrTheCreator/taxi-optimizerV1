@@ -118,8 +118,9 @@ router.post('/', async (req, res) => {
 
     await notifyAdmins(
       `🔄 <b>Запрос на перенос</b>\n` +
-      `${user?.name || 'Работник'}: ${ruDate}\n` +
-      `${existing.shift_time} → ${time}`
+      `${user?.name || 'Работник'}\n` +
+      `📞 ${req.user.phone}\n` +
+      `${ruDate}: ${existing.shift_time} → ${time}`
     )
 
     return res.json({ requested: true, from: existing.shift_time, to: time })

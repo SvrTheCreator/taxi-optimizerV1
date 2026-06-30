@@ -78,7 +78,8 @@ router.post('/', async (req, res) => {
     .single()
   await notifyAdmins(
     `🏠 <b>Заявка на смену адреса</b>\n` +
-    `От: ${applicant?.name || 'работник'}\n` +
+    `${applicant?.name || 'работник'}\n` +
+    `📞 ${req.user.phone}\n` +
     `Было: ${applicant?.home_address || '—'}\n` +
     `Новый: ${address}`
   )

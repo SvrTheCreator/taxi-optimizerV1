@@ -49,7 +49,9 @@ router.patch('/me/address', async (req, res) => {
     .single()
   await notifyAdmins(
     `🏠 <b>Админ сменил адрес</b>\n` +
-    `${me?.name || 'Админ'}: ${address}`,
+    `${me?.name || 'Админ'}\n` +
+    `📞 ${req.user.phone}\n` +
+    `${address}`,
     { excludeUserId: req.user.userId }
   )
 
@@ -100,7 +102,9 @@ router.patch('/me/temp-address', async (req, res) => {
 
   await notifyAdmins(
     `📍 <b>Временный адрес</b>\n` +
-    `${user?.name || 'Работник'}: ${address}`
+    `${user?.name || 'Работник'}\n` +
+    `📞 ${req.user.phone}\n` +
+    `${address}`
   )
 
   res.json({ ok: true })
