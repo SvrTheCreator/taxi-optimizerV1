@@ -102,9 +102,14 @@ export default function WorkerPage() {
 
   // Выбрать время смены (одно на день) или отменить
   async function selectShift(time) {
+    const current = myShifts[0] // максимум одна запись на день
+
+    // Повторный тап по уже выбранному времени отменяет поездку — спрашиваем
+    // подтверждение, чтобы случайным тапом не сбросить запись.
+    if (current?.shift_time === time && !window.confirm('Отменить поездку?')) return
+
     setLoading(true)
     setShiftMsg('')
-    const current = myShifts[0] // максимум одна запись на день
 
     if (current?.shift_time === time) {
       await authFetch(`/api/shifts/${current.id}`, { method: 'DELETE' })
