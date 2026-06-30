@@ -1297,7 +1297,7 @@ button { cursor: pointer; border: none; font-family: inherit; }
   align-items: flex-start;
   gap: 8px;
 }
-.notification-header p { flex: 1; }
+.notification-header p { flex: 1; white-space: pre-line; }
 .btn-notif-delete {
   background: none;
   color: var(--gray-500);

@@ -95,9 +95,14 @@ router.post('/', async (req, res) => {
 
     const { data: user } = await supabase
       .from('users')
-      .select('name')
+      .select('name, home_address, temp_address')
       .eq('id', req.user.userId)
       .single()
+
+    const name = user?.name || 'Работник'
+    // Адрес посадки для этой поездки: временный (если включён), иначе домашний
+    const address = (existing.use_temp ? user?.temp_address : user?.home_address)
+      || user?.home_address || '—'
 
     // Разрешаем несколько переносов в день: предыдущий НЕутверждённый запрос
     // на этот день снимаем, чтобы у админа не копились устаревшие дубли —
@@ -112,14 +117,16 @@ router.post('/', async (req, res) => {
 
     await supabase.from('notifications').insert({
       user_id: req.user.userId,
-      message: `${user?.name || 'Работник'} просит перенести ${ruDate}: ${existing.shift_time} → ${time}`,
+      message: `${name} просит перенести ${ruDate}: ${existing.shift_time} → ${time}\n🏠 ${address}`,
       is_read: false,
+      status: 'pending',
     })
 
     await notifyAdmins(
       `🔄 <b>Запрос на перенос</b>\n` +
-      `${user?.name || 'Работник'}\n` +
+      `${name}\n` +
       `📞 ${req.user.phone}\n` +
+      `🏠 ${address}\n` +
       `${ruDate}: ${existing.shift_time} → ${time}`
     )
 
