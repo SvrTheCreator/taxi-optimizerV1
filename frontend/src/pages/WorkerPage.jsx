@@ -6,6 +6,7 @@ import DateSlider from '../components/DateSlider'
 import TelegramBindButton from '../components/TelegramBindButton'
 import { geocodeAddress } from '../utils/api'
 import { isAfterDeadline, DEADLINE_HOUR_MSK } from '../utils/deadline'
+import { shortAddr } from '../utils/address'
 
 const SHIFT_TIMES = ['20:00', '21:00', '21:15', '22:00', '22:15', '23:00']
 
@@ -34,7 +35,7 @@ function AutoDismissNotif({ notif, authFetch, onDismiss }) {
   const cls = notif.status === 'approved' ? 'notif-good' : notif.status === 'rejected' ? 'notif-bad' : 'notif-info'
   return (
     <div className={`worker-notif ${cls} ${fading ? 'notif-fade' : ''}`}>
-      <span>{notif.message}</span>
+      <span>{shortAddr(notif.message)}</span>
       <button onClick={dismiss}>Ок</button>
     </div>
   )
@@ -320,7 +321,7 @@ export default function WorkerPage() {
             />
             {!canSetTemp && !useTemp
               ? `Временный адрес недоступен до следующего месяца`
-              : `Ехать по временному адресу (${profile.temp_address})`
+              : `Ехать по временному адресу (${shortAddr(profile.temp_address)})`
             }
           </label>
         )}
@@ -349,7 +350,7 @@ export default function WorkerPage() {
               {/* Основной адрес */}
               <div className="accordion-block">
                 <h3>Домашний адрес</h3>
-                <p className="current-address">{profile.home_address}</p>
+                <p className="current-address">{shortAddr(profile.home_address)}</p>
                 {!movingMode ? (
                   <button
                     className="moved-btn"
@@ -382,7 +383,7 @@ export default function WorkerPage() {
                   Один раз в месяц для другого маршрута
                 </p>
                 {profile?.temp_address && (
-                  <p className="current-address">{profile.temp_address}</p>
+                  <p className="current-address">{shortAddr(profile.temp_address)}</p>
                 )}
                 {canSetTemp ? (
                   <div className="address-change">

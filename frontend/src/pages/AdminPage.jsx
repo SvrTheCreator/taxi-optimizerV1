@@ -9,6 +9,7 @@ import { geocodeAddress } from '../utils/api'
 import { useToast } from '../components/Toast'
 import TelegramBindButton from '../components/TelegramBindButton'
 import { playBeep } from '../utils/sound'
+import { shortAddr } from '../utils/address'
 
 const WORK_COORDS = { lat: 47.2358, lon: 39.7137 }
 
@@ -376,7 +377,7 @@ export default function AdminPage() {
               <button className="btn-close" onClick={() => setShowAddressPopup(false)}>×</button>
             </div>
             {profile?.home_address && (
-              <p className="current-address">{profile.home_address}</p>
+              <p className="current-address">{shortAddr(profile.home_address)}</p>
             )}
             <div className="address-change">
               <AddressInput
@@ -405,7 +406,7 @@ export default function AdminPage() {
               <button className="btn-close" onClick={() => setShowTaxiPopup(false)}>×</button>
             </div>
             <p style={{ fontSize: 13, color: '#9E9E9E', marginBottom: 8 }}>
-              {profile?.home_address}
+              {shortAddr(profile?.home_address)}
             </p>
             {myShift ? (
               <div>
@@ -476,7 +477,7 @@ export default function AdminPage() {
                 const cur = manualDay.find(d => d.workerId === p.id)
                 return (
                   <div key={p.id} className="manual-row">
-                    <div className="manual-info"><strong>{p.name}</strong><br /><small>{p.address}</small></div>
+                    <div className="manual-info"><strong>{p.name}</strong><br /><small>{shortAddr(p.address)}</small></div>
                     <select className="manual-time" value={cur?.time || ''} onChange={e => setManualAssign(p.id, e.target.value)}>
                       <option value="">— не едет —</option>
                       {SHIFT_TIMES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -524,7 +525,7 @@ export default function AdminPage() {
                     {shiftsByTime[time].map(s => (
                       <li key={s.id} className="shift-entry">
                         <span>
-                          {s.users?.name} — {s.display_address || s.users?.home_address || 'адрес не указан'}
+                          {s.users?.name} — {shortAddr(s.display_address || s.users?.home_address) || 'адрес не указан'}
                           {s.use_temp && <span className="temp-badge">врем.</span>}
                           {s.manual && <span className="temp-badge">вручную</span>}
                         </span>
@@ -598,9 +599,9 @@ export default function AdminPage() {
                 <div className="request-info">
                   <strong>{r.users?.name}</strong> ({formatPhone(r.users?.phone)})
                   <br />
-                  <span className="old-addr">Было: {r.users?.home_address || '—'}</span>
+                  <span className="old-addr">Было: {shortAddr(r.users?.home_address) || '—'}</span>
                   <br />
-                  <span className="new-addr">Новый: {r.new_address}</span>
+                  <span className="new-addr">Новый: {shortAddr(r.new_address)}</span>
                 </div>
                 <button
                   className="btn-notif-delete"
@@ -676,7 +677,7 @@ export default function AdminPage() {
                 <strong>{w.name}</strong> ({formatPhone(w.phone)})
                 <br />
                 <span style={w.home_address ? {} : { color: '#e53935', fontWeight: 600 }}>
-                  {w.home_address || 'нет адреса!'}
+                  {shortAddr(w.home_address) || 'нет адреса!'}
                 </span>
                 <br />
                 <small>Роль: {w.role}</small>
@@ -710,7 +711,7 @@ export default function AdminPage() {
             return (
               <div key={n.id} className={`notification-card ${isUnread ? 'unread' : 'read'}`}>
                 <div className="notification-header">
-                  <p>{n.message}</p>
+                  <p>{shortAddr(n.message)}</p>
                   <button
                     className="btn-notif-delete"
                     onClick={async () => {

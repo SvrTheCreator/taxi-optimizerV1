@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext'
 import { formatResultAsText } from '../utils/optimizer'
 import { saveSession } from '../utils/api'
 import MapView from '../components/MapView'
+import { shortAddr } from '../utils/address'
 
 export default function ResultPage() {
   const { state, dispatch } = useApp()
@@ -149,7 +150,7 @@ export default function ResultPage() {
 
       {movingAddress && (
         <div className="move-hint card">
-          Перемещаем: <strong>{movingAddress.address}</strong>
+          Перемещаем: <strong>{shortAddr(movingAddress.address)}</strong>
           <button className="btn btn-ghost" onClick={() => setMovingAddress(null)}>Отмена</button>
         </div>
       )}
@@ -197,7 +198,7 @@ export default function ResultPage() {
                           >
                             <span className="drag-handle" onClick={e => e.stopPropagation()}>☰</span>
                             <span className="addr-num">{i + 1}</span>
-                            <span className="addr-text">{addr}</span>
+                            <span className="addr-text">{shortAddr(addr)}</span>
                             <button
                               className="btn-move"
                               onClick={e => { e.stopPropagation(); handleMoveStart(addr, taxi.id, group.time) }}

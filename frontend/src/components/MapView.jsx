@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { geocodeAddress } from '../utils/api'
+import { shortAddr } from './../utils/address'
 
 // Примерные координаты — будут заменены точными при первом запросе
 let workCoordsCache = null
@@ -99,7 +100,7 @@ export default function MapView({ taxi, onClose }) {
         // Маркер рабочей точки "А" (чёрный)
         map.geoObjects.add(new window.ymaps.Placemark(
           routeData.workCoords,
-          { balloonContent: WORK_ADDRESS },
+          { balloonContent: shortAddr(WORK_ADDRESS) },
           { preset: 'islands#blackCircleDotIcon' }
         ))
 
@@ -108,7 +109,7 @@ export default function MapView({ taxi, onClose }) {
           if (!p.lat || !p.lon) return
           map.geoObjects.add(new window.ymaps.Placemark(
             [p.lat, p.lon],
-            { iconContent: i + 1, balloonContent: p.address },
+            { iconContent: i + 1, balloonContent: shortAddr(p.address) },
             { preset: 'islands#blackStretchyIcon' }
           ))
         })
@@ -146,7 +147,7 @@ export default function MapView({ taxi, onClose }) {
             map.geoObjects.add(
               new window.ymaps.Placemark(
                 [p.lat, p.lon],
-                { iconContent: i + 1, balloonContent: p.address },
+                { iconContent: i + 1, balloonContent: shortAddr(p.address) },
                 { preset: 'islands#yellowStretchyIcon' }
               )
             )
@@ -188,7 +189,7 @@ export default function MapView({ taxi, onClose }) {
           {taxi.addresses.map((addr, i) => (
             <div key={i} className="route-stop">
               <span className="stop-dot">{i + 1}</span>
-              <span className="route-addr">{addr}</span>
+              <span className="route-addr">{shortAddr(addr)}</span>
             </div>
           ))}
         </div>
