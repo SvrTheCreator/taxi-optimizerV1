@@ -214,7 +214,7 @@ router.delete('/:id', async (req, res) => {
   // Сначала забираем запись (для оповещения админа), потом удаляем
   const { data: entry } = await supabase
     .from('shift_entries')
-    .select('shift_date, shift_time, user_id, users(name)')
+    .select('shift_date, shift_time, user_id, users(name, phone, home_address)')
     .eq('id', id)
     .single()
 
@@ -230,18 +230,24 @@ router.delete('/:id', async (req, res) => {
   if (entry && req.user.role !== 'admin' && entry.user_id === req.user.userId) {
     const [y, m, d] = String(entry.shift_date).split('-')
     const ruDate = `${d}.${m}.${y}`
-    const name = entry.users?.name || 'Работник'
+    const u = entry.users
+    const name = u?.name || 'Работник'
+    const phone = u?.phone || '—'
+    const address = u?.home_address || '—'
 
     await supabase.from('notifications').insert({
       user_id: req.user.userId,
-      message: `${name} ОТМЕНИЛ(А) поездку ${ruDate} на ${entry.shift_time}`,
+      message: `${name} (${phone}) ОТМЕНИЛ(А) поездку ${ruDate} на ${entry.shift_time}`,
       is_read: false,
       status: 'pending',
     })
 
     await notifyAdmins(
       `❌ <b>Отмена поездки</b>\n` +
-      `${name}: ${ruDate}, было ${entry.shift_time}`
+      `${name}\n` +
+      `📞 ${phone}\n` +
+      `🏠 ${address}\n` +
+      `${ruDate}, было ${entry.shift_time}`
     )
   }
 
