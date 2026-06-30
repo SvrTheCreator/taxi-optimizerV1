@@ -702,11 +702,9 @@ export default function AdminPage() {
       {/* Таб: Переносы */}
       {tab === 'notifications' && (
         <section>
-          <h2>Запросы на перенос</h2>
-          {notifications.length === 0 && <p className="hint">Запросов нет</p>}
+          <h2>Переносы и отмены</h2>
+          {notifications.length === 0 && <p className="hint">Уведомлений нет</p>}
           {notifications.map(n => {
-            const match = n.message.match(/просит перенести (\d{2})\.(\d{2})\.(\d{4}): .+ → (\S+)/)
-            const isTransfer = n.status === 'pending' && match
             const isUnread = n.status === 'pending'
 
             return (
@@ -726,45 +724,15 @@ export default function AdminPage() {
                 </div>
                 <div className="notification-footer">
                   <small>{new Date(n.created_at).toLocaleString('ru')}</small>
-                  {n.status === 'approved' && <span className="status-badge approved">Принято</span>}
-                  {n.status === 'rejected' && <span className="status-badge rejected">Отклонено</span>}
                   {n.status === 'read' && <span className="status-badge" style={{ background: '#E0E0E0', color: '#666' }}>Прочитано</span>}
                 </div>
-                {isUnread && !isTransfer && (
+                {isUnread && (
                   <div className="request-actions" style={{ marginTop: 8 }}>
                     <button className="btn-approve" onClick={async () => {
                       await authFetch(`/api/notifications/${n.id}/read`, { method: 'POST' })
                       loadNotifications()
                     }}>
                       Ок
-                    </button>
-                  </div>
-                )}
-                {isTransfer && (
-                  <div className="request-actions" style={{ marginTop: 8 }}>
-                    <button className="btn-approve" onClick={async () => {
-                      await authFetch('/api/shifts/approve-transfer', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                          userId: n.user_id,
-                          date: `${match[3]}-${match[2]}-${match[1]}`,
-                          newTime: match[4],
-                          notificationId: n.id,
-                        }),
-                      })
-                      loadNotifications()
-                      loadShifts()
-                    }}>
-                      Утвердить
-                    </button>
-                    <button className="btn-reject" onClick={async () => {
-                      await authFetch('/api/shifts/reject-transfer', {
-                        method: 'POST',
-                        body: JSON.stringify({ notificationId: n.id }),
-                      })
-                      loadNotifications()
-                    }}>
-                      Отклонить
                     </button>
                   </div>
                 )}

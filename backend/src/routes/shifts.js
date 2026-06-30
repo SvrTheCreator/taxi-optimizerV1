@@ -89,9 +89,11 @@ router.post('/', async (req, res) => {
       return res.json(data)
     }
 
-    // Работник — запрос на перенос
+    // Работник переносит свою смену — применяем СРАЗУ, без подтверждения
+    // админа. Админ лишь получает информационное уведомление.
     const [y, m, d] = date.split('-')
     const ruDate = `${d}.${m}.${y}`
+    const fromTime = existing.shift_time
 
     const { data: user } = await supabase
       .from('users')
@@ -104,9 +106,17 @@ router.post('/', async (req, res) => {
     const address = (existing.use_temp ? user?.temp_address : user?.home_address)
       || user?.home_address || '—'
 
-    // Разрешаем несколько переносов в день: предыдущий НЕутверждённый запрос
-    // на этот день снимаем, чтобы у админа не копились устаревшие дубли —
-    // остаётся только актуальный запрос.
+    // Применяем перенос времени
+    const { data: updated, error: updErr } = await supabase
+      .from('shift_entries')
+      .update({ shift_time: time })
+      .eq('id', existing.id)
+      .select()
+      .single()
+    if (updErr) return res.status(500).json({ error: updErr.message })
+
+    // Снимаем прежние непрочитанные уведомления о переносе за этот день,
+    // чтобы у админа осталось только последнее.
     await supabase
       .from('notifications')
       .delete()
@@ -117,20 +127,20 @@ router.post('/', async (req, res) => {
 
     await supabase.from('notifications').insert({
       user_id: req.user.userId,
-      message: `${name} просит перенести ${ruDate}: ${existing.shift_time} → ${time}\n🏠 ${address}`,
+      message: `${name} перенёс смену ${ruDate}: ${fromTime} → ${time}\n🏠 ${address}`,
       is_read: false,
       status: 'pending',
     })
 
     await notifyAdmins(
-      `🔄 <b>Запрос на перенос</b>\n` +
+      `🔄 <b>Перенос смены</b>\n` +
       `${name}\n` +
       `📞 ${req.user.phone}\n` +
       `🏠 ${address}\n` +
-      `${ruDate}: ${existing.shift_time} → ${time}`
+      `${ruDate}: ${fromTime} → ${time}`
     )
 
-    return res.json({ requested: true, from: existing.shift_time, to: time })
+    return res.json(updated)
   }
 
   // Новая запись — для работника закрыта после 18:00 (перенос выше остаётся доступен)

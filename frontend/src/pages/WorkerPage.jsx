@@ -120,9 +120,9 @@ export default function WorkerPage() {
         body: JSON.stringify({ date: selectedDate, time }),
       })
       if (res?.ok) {
-        const data = await res.json()
-        if (data.requested) {
-          toast(`Запрос на перенос ${data.from} → ${data.to} отправлен`, 'info')
+        await res.json()
+        if (current) {
+          toast(`Время изменено на ${time}`, 'success')
         } else {
           toast(`Записан на ${time}`, 'success')
         }
@@ -246,7 +246,7 @@ export default function WorkerPage() {
       {afterDeadline && (
         <div className="deadline-banner">
           ⏰ После {DEADLINE_HOUR_MSK}:00 МСК новая запись и смена адреса закрыты.
-          Если уже записан — можно запросить перенос времени или отменить поездку.
+          Если уже записан — можно перенести время или отменить поездку.
         </div>
       )}
 
