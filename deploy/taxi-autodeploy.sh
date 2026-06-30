@@ -15,6 +15,15 @@ REMOTE=$(git rev-parse origin/main)
 echo "Новый коммит $REMOTE — выкатываю…"
 git pull --ff-only origin main
 npm install --prefix backend
-VITE_TELEGRAM_BOT_USERNAME=taxi_optimizer_helper_bot npm run build --prefix frontend
+
+# Имя бота для фронта берём из backend/.env (единый источник правды с бэком),
+# чтобы не зависеть от хардкода. Фолбэк — на случай, если переменной нет.
+BOT_USERNAME=$(grep -E '^TELEGRAM_BOT_USERNAME=' backend/.env 2>/dev/null | head -1 | cut -d= -f2-)
+BOT_USERNAME=${BOT_USERNAME//\"/}
+BOT_USERNAME=${BOT_USERNAME//\'/}
+BOT_USERNAME=${BOT_USERNAME//$'\r'/}
+BOT_USERNAME=${BOT_USERNAME:-taxi_optimizer_helper_bot}
+
+VITE_TELEGRAM_BOT_USERNAME="$BOT_USERNAME" npm run build --prefix frontend
 systemctl restart taxi-optimizer
 echo "Деплой готов: $(git rev-parse --short HEAD)"
