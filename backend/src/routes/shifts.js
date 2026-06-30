@@ -232,7 +232,7 @@ router.delete('/:id', async (req, res) => {
   // Сначала забираем запись (для оповещения админа), потом удаляем
   const { data: entry } = await supabase
     .from('shift_entries')
-    .select('shift_date, shift_time, user_id, users(name, phone, home_address)')
+    .select('shift_date, shift_time, use_temp, user_id, users(name, phone, home_address, temp_address)')
     .eq('id', id)
     .single()
 
@@ -251,11 +251,13 @@ router.delete('/:id', async (req, res) => {
     const u = entry.users
     const name = u?.name || 'Работник'
     const phone = u?.phone || '—'
-    const address = u?.home_address || '—'
+    // Адрес поездки: временный (если был включён), иначе домашний — как в переносе
+    const address = (entry.use_temp ? u?.temp_address : u?.home_address)
+      || u?.home_address || '—'
 
     await supabase.from('notifications').insert({
       user_id: req.user.userId,
-      message: `${name} (${phone}) ОТМЕНИЛ(А) поездку ${ruDate} на ${entry.shift_time}`,
+      message: `${name} ОТМЕНИЛ(А) поездку ${ruDate} на ${entry.shift_time}\n🏠 ${address}`,
       is_read: false,
       status: 'pending',
     })
