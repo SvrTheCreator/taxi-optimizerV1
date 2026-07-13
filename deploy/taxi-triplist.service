@@ -1,0 +1,15 @@
+# Разовый запуск ежедневной рассылки списка поездок в Telegram (18:00 МСК).
+# Ставится вместе с taxi-triplist.timer:
+#   sudo cp deploy/taxi-triplist.* /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now taxi-triplist.timer
+# Ручной прогон: sudo systemctl start taxi-triplist.service ; journalctl -u taxi-triplist
+
+[Unit]
+Description=Taxi Optimizer — ежедневный список поездок в Telegram (18:00 МСК)
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/taxi-optimizerV1/backend
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node src/scripts/dailyTripList.js
