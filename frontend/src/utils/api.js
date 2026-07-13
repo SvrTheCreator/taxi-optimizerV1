@@ -1,5 +1,6 @@
 // Все функции для общения с бэкендом
 // BASE_URL пустой — запросы идут на тот же хост (proxy в vite.config.js перенаправляет на бэкенд)
+import { ymapsReady } from './ymaps'
 
 const BASE = '/api'
 
@@ -33,11 +34,11 @@ export async function geocodeAddress(address) {
 
 function geocodeViaYmaps(address) {
   return new Promise((resolve, reject) => {
-    if (!window.ymaps) return reject(new Error('Не удалось определить адрес. Попробуйте ещё раз.'))
     const hasCity = /ростов|батайск|азов|новочеркасск/i.test(address)
     const fullAddress = hasCity ? address : `${address}, Ростов-на-Дону`
 
-    // Страховка: если ymaps.ready()/geocode() не ответит — промис всё равно завершится
+    // Страховка: если ymaps не загрузится/не ответит — промис всё равно завершится
+    // (по таймауту), и geocodeAddress уйдёт на серверный фолбэк.
     let done = false
     const settle = (fn) => (arg) => {
       if (done) return
@@ -49,8 +50,9 @@ function geocodeViaYmaps(address) {
     const fail = settle(reject)
     const timer = setTimeout(() => fail(new Error('Сервис карт не отвечает. Попробуйте ещё раз.')), GEOCODE_TIMEOUT)
 
-    window.ymaps.ready(() => {
-      window.ymaps.geocode(fullAddress, {
+    // ymaps грузится асинхронно — ждём его появления (в пределах общего таймаута).
+    ymapsReady(GEOCODE_TIMEOUT).then(ymaps => {
+      ymaps.geocode(fullAddress, {
         boundedBy: [[46.5, 38.5], [47.8, 41.5]],
         results: 1,
       }).then(res => {
@@ -59,7 +61,7 @@ function geocodeViaYmaps(address) {
         const [lat, lon] = obj.geometry.getCoordinates()
         ok({ lat, lon, fromCache: false })
       }).catch(() => fail(new Error(`Адрес не найден: ${address}`)))
-    })
+    }).catch(() => fail(new Error('Не удалось определить адрес. Попробуйте ещё раз.')))
   })
 }
 

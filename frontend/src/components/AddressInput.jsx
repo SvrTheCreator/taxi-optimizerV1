@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
+import { ymapsReady } from '../utils/ymaps'
 
 function getYmapsSuggestions(value) {
   return new Promise(resolve => {
-    if (!window.ymaps) return resolve([])
-    window.ymaps.ready(() => {
+    // ymaps грузится асинхронно; ждём его, при недоступности — пустые подсказки
+    ymapsReady().then(ymaps => {
       const hasCity = /ростов|батайск|азов|новочеркасск/i.test(value)
       const query = hasCity ? value : `${value}, Ростовская область`
-      window.ymaps
+      ymaps
         .suggest(query, {
           boundedBy: [[46.5, 38.5], [47.8, 41.5]],
           results: 6,
@@ -14,7 +15,7 @@ function getYmapsSuggestions(value) {
         })
         .then(items => resolve(items.map(item => ({ raw: item.displayName }))))
         .catch(() => resolve([]))
-    })
+    }).catch(() => resolve([]))
   })
 }
 

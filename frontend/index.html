@@ -9,8 +9,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="theme-color" content="#FFDD2D" />
     <title>Такси Оптимизатор</title>
-    <!-- Яндекс.Карты API — загружаем один раз для всего приложения -->
-    <script src="https://api-maps.yandex.ru/2.1/?apikey=2ca2de2c-378e-4e38-af6b-6bf16d0d7665&suggest_apikey=08506ec7-32fb-4429-bbae-8315eda2e4d2&lang=ru_RU" type="text/javascript"></script>
+    <!-- Яндекс.Карты API — загружаем один раз для всего приложения.
+         async: скрипт НЕ блокирует рендер. Если CDN Яндекса недоступен
+         (например мобильный LTE), приложение всё равно грузится, а карты/
+         геокодинг/подсказки ждут ymaps через utils/ymaps.js и мягко деградируют. -->
+    <script async src="https://api-maps.yandex.ru/2.1/?apikey=2ca2de2c-378e-4e38-af6b-6bf16d0d7665&suggest_apikey=08506ec7-32fb-4429-bbae-8315eda2e4d2&lang=ru_RU" type="text/javascript"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { geocodeAddress } from '../utils/api'
 import { shortAddr } from './../utils/address'
+import { ymapsReady } from '../utils/ymaps'
 
 // Примерные координаты — будут заменены точными при первом запросе
 let workCoordsCache = null
@@ -56,7 +57,7 @@ export default function MapView({ taxi, onClose }) {
     setStatus('Строим маршрут...')
 
     // Получаем точные координаты рабочего адреса + строим маршрут + готовим карту — всё параллельно
-    const mapReady = new Promise(resolve => window.ymaps.ready(resolve))
+    const mapReady = ymapsReady()
     const workCoordsReady = getWorkCoords()
 
     // Ждём координаты работы, потом можем запросить маршрут
@@ -127,8 +128,8 @@ export default function MapView({ taxi, onClose }) {
       })
       .catch(err => {
         console.warn('Route error:', err)
-        // Fallback: просто показываем карту с маркерами
-        window.ymaps.ready(() => {
+        // Fallback: просто показываем карту с маркерами (если карты вообще загрузились)
+        ymapsReady().then(() => {
           if (!mapRef.current) return
           if (mapInstance.current) {
             mapInstance.current.destroy()
@@ -154,6 +155,10 @@ export default function MapView({ taxi, onClose }) {
           })
           map.setBounds(map.geoObjects.getBounds(), { checkZoomRange: true, zoomMargin: 40 })
           setStatus('Показаны точки (маршрут недоступен)')
+          setIsLoading(false)
+        }).catch(() => {
+          // Карты не загрузились совсем (CDN недоступен) — не роняем экран
+          setStatus('Карта недоступна')
           setIsLoading(false)
         })
       })
