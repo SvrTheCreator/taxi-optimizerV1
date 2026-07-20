@@ -55,15 +55,26 @@ function buildMessage(dateIso, entries) {
 async function main() {
   const today = new Date().toISOString().split('T')[0]
 
-  const { data, error } = await supabase
-    .from('shift_entries')
-    .select('shift_time, use_temp, users(name, home_address, temp_address)')
-    .eq('shift_date', today)
-    .order('shift_time')
+  // Список в приложении = зарегистрированные (shift_entries) + «кнопочные»
+  // работники из ростера (manual_shift_entries). AdminPage сливает оба
+  // источника, поэтому и здесь берём оба — иначе список будет неполным.
+  const [regRes, manRes] = await Promise.all([
+    supabase
+      .from('shift_entries')
+      .select('shift_time, use_temp, users(name, home_address, temp_address)')
+      .eq('shift_date', today)
+      .order('shift_time'),
+    supabase
+      .from('manual_shift_entries')
+      .select('shift_time, manual_workers(name, address)')
+      .eq('shift_date', today)
+      .order('shift_time'),
+  ])
 
-  if (error) { console.error('[triplist] supabase:', error.message); process.exit(1) }
+  if (regRes.error) { console.error('[triplist] supabase:', regRes.error.message); process.exit(1) }
+  if (manRes.error) { console.error('[triplist] supabase (manual):', manRes.error.message); process.exit(1) }
 
-  const entries = (data || []).map(e => {
+  const registered = (regRes.data || []).map(e => {
     const useTemp = e.use_temp && !!e.users?.temp_address
     return {
       name: e.users?.name,
@@ -72,6 +83,18 @@ async function main() {
       useTemp,
     }
   })
+
+  const manual = (manRes.data || []).map(e => ({
+    name: e.manual_workers?.name,
+    time: e.shift_time,
+    address: e.manual_workers?.address,
+    useTemp: false,
+  }))
+
+  // Общий список, отсортированный по времени смены ("HH:MM" сортируется строкой)
+  const entries = [...registered, ...manual].sort((a, b) =>
+    String(a.time).localeCompare(String(b.time))
+  )
 
   const text = buildMessage(today, entries)
 
@@ -93,7 +116,11 @@ async function main() {
     catch { fail++ }
     await new Promise(r => setTimeout(r, 60))
   }
-  console.log(`[triplist] ${today}: записей ${entries.length}, отправлено ${ok}, не доставлено ${fail}`)
+  console.log(
+    `[triplist] ${today}: записей ${entries.length} ` +
+    `(зарегистр. ${registered.length} + кнопочных ${manual.length}), ` +
+    `отправлено ${ok}, не доставлено ${fail}`
+  )
 }
 
 main().then(() => process.exit(0)).catch(e => { console.error('[triplist]', e?.message); process.exit(1) })
