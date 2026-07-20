@@ -1258,6 +1258,16 @@ button { cursor: pointer; border: none; font-family: inherit; }
   font-size: 15px;
 }
 
+.connection-banner ol {
+  margin: 10px 0 0;
+  padding-left: 22px;
+  text-align: left;
+}
+
+.connection-banner ol li {
+  margin-bottom: 4px;
+}
+
 .connection-banner button {
   margin-top: 10px;
   width: 100%;
