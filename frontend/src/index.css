@@ -1237,6 +1237,40 @@ button { cursor: pointer; border: none; font-family: inherit; }
   text-align: center;
 }
 
+/* Нет связи — данные не загрузились, запись недоступна.
+   Намеренно заметный: это ЕДИНСТВЕННОЕ объяснение, почему кнопки смен серые.
+   Мелкий серый .hint здесь не годится — его не замечают. */
+.connection-banner {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #8a4b00;
+  background: #FFF4E5;
+  border: 1px solid #FFD8A8;
+  border-radius: var(--radius);
+  padding: 14px;
+  margin: 12px 0;
+  text-align: center;
+}
+
+.connection-banner strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.connection-banner button {
+  margin-top: 10px;
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: #F57C00;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
 /* Request cards */
 .request-card {
   background: var(--card-bg);

@@ -355,17 +355,21 @@ export default function WorkerPage() {
         {profileKnown && !hasAddress && (
           <p className="hint">Укажите домашний адрес, чтобы записываться на смены</p>
         )}
-        {!profileKnown && (
-          <p className="hint">
-            {profileError
-              ? 'Не удалось загрузить ваши данные — проверьте интернет.'
-              : 'Загружаем ваши данные…'}
-            {profileError && (
-              <button className="btn-small" style={{ marginLeft: 8 }} onClick={loadProfile}>
-                Повторить
-              </button>
-            )}
-          </p>
+        {/* Пока профиль грузится — тихая подсказка. Если не загрузился — ЗАМЕТНЫЙ
+            баннер: это единственное объяснение, почему кнопки смен серые.
+            Человек должен понять и починить сам, не обращаясь к админу. */}
+        {!profileKnown && !profileError && (
+          <p className="hint">Загружаем ваши данные…</p>
+        )}
+        {!profileKnown && profileError && (
+          <div className="connection-banner">
+            <strong>Нет связи с приложением</strong>
+            Поэтому кнопки смен сейчас неактивны. Ваш адрес никуда не пропал —
+            вводить его заново <b>не нужно</b>.
+            <br />
+            Проверьте интернет и нажмите кнопку ниже.
+            <button onClick={loadProfile}>Попробовать снова</button>
+          </div>
         )}
       </section>
 
