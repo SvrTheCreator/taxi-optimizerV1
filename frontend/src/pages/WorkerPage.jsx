@@ -53,6 +53,9 @@ export default function WorkerPage() {
     try { return JSON.parse(localStorage.getItem(profileCacheKey)) } catch { return null }
   })
   const [profileLoaded, setProfileLoaded] = useState(false)
+  // Профиль не удалось загрузить (сеть/сервер). Нужен, чтобы отличать
+  // «данных пока нет» от «данные пришли, адреса действительно нет».
+  const [profileError, setProfileError] = useState(false)
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [myShifts, setMyShifts] = useState([])
   const [loading, setLoading] = useState(false)
@@ -74,7 +77,12 @@ export default function WorkerPage() {
       const data = await res.json()
       setProfile(data)
       setProfileLoaded(true)
+      setProfileError(false)
       try { localStorage.setItem(profileCacheKey, JSON.stringify(data)) } catch { /* нет места — не критично */ }
+    } else {
+      // Раньше сбой глотался молча, и приложение выглядело так, будто адреса нет:
+      // серые кнопки + ложная просьба ввести адрес. Теперь честно показываем причину.
+      setProfileError(true)
     }
     // при неуспехе профиль НЕ обнуляем — остаётся последний известный (из кеша)
   }, [authFetch, profileCacheKey])
@@ -186,7 +194,11 @@ export default function WorkerPage() {
         }
       }
     } catch (err) {
-      setAddressMsg('Ошибка геокодирования: ' + err.message)
+      // Геокодирование идёт ДО отправки на сервер: если оно упало (карты не
+      // загрузились на слабой сети), адрес вообще не уходит и «не сохраняется».
+      // Раньше причина писалась в addressMsg, который НИГДЕ не выводится, —
+      // человек не видел вообще ничего. Показываем toast, как остальные ветки.
+      toast(err?.message || 'Не удалось сохранить адрес — проверьте интернет и попробуйте ещё раз.', 'error')
     }
     setAddressLoading(false)
   }
@@ -226,7 +238,10 @@ export default function WorkerPage() {
   // Онбординг-форму показываем ТОЛЬКО когда есть с чем сравнивать (профиль
   // загрузился сейчас ИЛИ поднят из кеша) и адреса в нём нет. Иначе при упавшем
   // запросе профиля (мобильный/отключения) приложение ложно просило адрес заново.
-  const showAddressOnboarding = !hasAddress && (profileLoaded || profile != null)
+  // «Профиль известен» — либо пришёл сейчас, либо поднят из кеша. Пока он НЕ известен,
+  // нельзя утверждать, что адреса нет: это разные вещи (см. profileError).
+  const profileKnown = profileLoaded || profile != null
+  const showAddressOnboarding = !hasAddress && profileKnown
   // Смена адреса («Я переехал») доступна всегда — фильтр это одобрение админа,
   // а не таймер. 30-дневный кулдаун убрали.
 
@@ -334,8 +349,23 @@ export default function WorkerPage() {
 
         {shiftMsg && <p className="address-msg">{shiftMsg}</p>}
 
-        {!profile?.home_address && (
+        {/* Просить адрес можно ТОЛЬКО когда профиль реально загружен. Иначе при
+            упавшем запросе приложение ложно требовало адрес, а сервер его потом
+            отвергал («Адрес уже установлен») — человек попадал в тупик. */}
+        {profileKnown && !hasAddress && (
           <p className="hint">Укажите домашний адрес, чтобы записываться на смены</p>
+        )}
+        {!profileKnown && (
+          <p className="hint">
+            {profileError
+              ? 'Не удалось загрузить ваши данные — проверьте интернет.'
+              : 'Загружаем ваши данные…'}
+            {profileError && (
+              <button className="btn-small" style={{ marginLeft: 8 }} onClick={loadProfile}>
+                Повторить
+              </button>
+            )}
+          </p>
         )}
       </section>
 
