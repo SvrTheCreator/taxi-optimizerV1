@@ -11,13 +11,26 @@ const TEXT =
   'Записаться на смену и внести/поменять адрес на сегодня можно <b>до 18:00 по Москве</b>.\n' +
   'После 18:00 запись закрывается. Не забудь отметиться 🚕'
 
+// Supabase за границей — RU→заграница иногда моргает единичным "fetch failed".
+// Без повтора напоминание за день пропало бы целиком. Повторяем несколько раз.
+async function queryWithRetry(build, tries = 4) {
+  let lastErr
+  for (let i = 1; i <= tries; i++) {
+    const res = await build()
+    if (!res.error) return res
+    lastErr = res.error
+    console.error(`[reminder] supabase попытка ${i}/${tries}: ${res.error.message}`)
+    if (i < tries) await new Promise(r => setTimeout(r, 1500 * i))
+  }
+  throw new Error(`[reminder] supabase: не удалось после ${tries} попыток — ${lastErr?.message}`)
+}
+
 async function main() {
-  const { data: users, error } = await supabase
+  const { data: users } = await queryWithRetry(() => supabase
     .from('users')
     .select('telegram_chat_id')
-    .not('telegram_chat_id', 'is', null)
+    .not('telegram_chat_id', 'is', null))
 
-  if (error) { console.error('[reminder] supabase:', error.message); process.exit(1) }
   if (!users?.length) { console.log('[reminder] нет пользователей с TG'); return }
 
   let ok = 0, fail = 0

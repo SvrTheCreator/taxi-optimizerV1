@@ -52,6 +52,21 @@ function buildMessage(dateIso, entries) {
   return `${header}\n\n${blocks.join('\n\n')}\n\nВсего: ${entries.length}`
 }
 
+// Supabase за границей — RU→заграница иногда моргает единичным "fetch failed".
+// Раньше скрипт падал с первой ошибки, и список за день пропадал целиком
+// (случилось 2026-07-25 при запуске в 18:00). Повторяем несколько раз.
+async function queryWithRetry(build, label, tries = 4) {
+  let lastErr
+  for (let i = 1; i <= tries; i++) {
+    const res = await build()
+    if (!res.error) return res
+    lastErr = res.error
+    console.error(`[triplist] ${label} попытка ${i}/${tries}: ${res.error.message}`)
+    if (i < tries) await new Promise(r => setTimeout(r, 1500 * i))
+  }
+  throw new Error(`[triplist] ${label}: не удалось после ${tries} попыток — ${lastErr?.message}`)
+}
+
 async function main() {
   const today = new Date().toISOString().split('T')[0]
 
@@ -59,20 +74,17 @@ async function main() {
   // работники из ростера (manual_shift_entries). AdminPage сливает оба
   // источника, поэтому и здесь берём оба — иначе список будет неполным.
   const [regRes, manRes] = await Promise.all([
-    supabase
+    queryWithRetry(() => supabase
       .from('shift_entries')
       .select('shift_time, use_temp, users(name, home_address, temp_address)')
       .eq('shift_date', today)
-      .order('shift_time'),
-    supabase
+      .order('shift_time'), 'shift_entries'),
+    queryWithRetry(() => supabase
       .from('manual_shift_entries')
       .select('shift_time, manual_workers(name, address)')
       .eq('shift_date', today)
-      .order('shift_time'),
+      .order('shift_time'), 'manual'),
   ])
-
-  if (regRes.error) { console.error('[triplist] supabase:', regRes.error.message); process.exit(1) }
-  if (manRes.error) { console.error('[triplist] supabase (manual):', manRes.error.message); process.exit(1) }
 
   const registered = (regRes.data || []).map(e => {
     const useTemp = e.use_temp && !!e.users?.temp_address
@@ -101,13 +113,12 @@ async function main() {
   // Получатели — все админы с привязанным Telegram (в т.ч. жена).
   // ALERT_ADMIN_PHONES тут НЕ применяем: это ежедневный отчёт «кто едет»,
   // он должен дойти до всех админов, а не только до узкого списка алертов.
-  const { data: admins, error: adminErr } = await supabase
+  const { data: admins } = await queryWithRetry(() => supabase
     .from('users')
     .select('telegram_chat_id')
     .eq('role', 'admin')
-    .not('telegram_chat_id', 'is', null)
+    .not('telegram_chat_id', 'is', null), 'admins')
 
-  if (adminErr) { console.error('[triplist] admins:', adminErr.message); process.exit(1) }
   if (!admins?.length) { console.log('[triplist] нет админов с привязанным Telegram'); return }
 
   let ok = 0, fail = 0
