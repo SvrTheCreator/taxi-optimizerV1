@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import supabase from '../db/supabase.js'
-import { sendMessage } from '../lib/telegram.js'
+import { sendMessageRetry } from '../lib/telegram.js'
 import { shortAddr } from '../lib/address.js'
 
 // Ежедневный список записавшихся на смены — тот же, что админ видит в приложении
@@ -123,8 +123,8 @@ async function main() {
 
   let ok = 0, fail = 0
   for (const a of admins) {
-    try { await sendMessage(a.telegram_chat_id, text); ok++ }
-    catch { fail++ }
+    try { await sendMessageRetry(a.telegram_chat_id, text); ok++ }
+    catch (e) { fail++; console.error('[triplist] не доставлено', a.telegram_chat_id, '-', e?.message) }
     await new Promise(r => setTimeout(r, 60))
   }
   console.log(

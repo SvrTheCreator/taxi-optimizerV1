@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import supabase from '../db/supabase.js'
-import { sendMessage } from '../lib/telegram.js'
+import { sendMessageRetry } from '../lib/telegram.js'
 
 // Ежедневное напоминание всем пользователям с привязанным Telegram:
 // записаться на смену и внести адрес можно до 18:00 МСК.
@@ -36,11 +36,11 @@ async function main() {
   let ok = 0, fail = 0
   for (const u of users) {
     try {
-      await sendMessage(u.telegram_chat_id, TEXT)
+      await sendMessageRetry(u.telegram_chat_id, TEXT)
       ok++
     } catch (e) {
       fail++
-      // 403 = пользователь заблокировал бота — это нормально, не считаем ошибкой инфры
+      // 403 = пользователь заблокировал бота — это нормально (ретрай его не повторяет)
     }
     await new Promise(r => setTimeout(r, 60)) // ~16 msg/s, в пределах лимитов Telegram
   }
