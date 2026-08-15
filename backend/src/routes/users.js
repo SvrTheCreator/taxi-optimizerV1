@@ -20,6 +20,9 @@ router.get('/me', async (req, res) => {
     .eq('id', req.user.userId)
     .single()
 
+  // Юзера нет (аккаунт удалён, а токен ещё живой) → 401, чтобы фронт разлогинил
+  // и человек вошёл заново со свежим id. Иначе любая запись падала с FK-ошибкой.
+  if (error?.code === 'PGRST116') return res.status(401).json({ error: 'Аккаунт не найден, войдите заново' })
   if (error) return res.status(500).json({ error: error.message })
   res.json(data)
 })
