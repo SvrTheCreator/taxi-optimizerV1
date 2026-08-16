@@ -5,7 +5,7 @@ import AddressInput from '../components/AddressInput'
 import DateSlider from '../components/DateSlider'
 import TelegramBindButton from '../components/TelegramBindButton'
 import { geocodeAddress } from '../utils/api'
-import { isAfterDeadline, DEADLINE_HOUR_MSK } from '../utils/deadline'
+import { isAfterDeadline, DEADLINE_HOUR_MSK, mskDateStr } from '../utils/deadline'
 import { shortAddr } from '../utils/address'
 
 const SHIFT_TIMES = ['20:00', '21:00', '21:15', '22:00', '22:15', '23:00']
@@ -442,5 +442,5 @@ export default function WorkerPage() {
 }
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0]
+  return mskDateStr()
 }

@@ -10,6 +10,7 @@ import { useToast } from '../components/Toast'
 import TelegramBindButton from '../components/TelegramBindButton'
 import { playBeep } from '../utils/sound'
 import { shortAddr } from '../utils/address'
+import { mskDateStr } from '../utils/deadline'
 
 const WORK_COORDS = { lat: 47.2358, lon: 39.7137 }
 
@@ -747,5 +748,5 @@ export default function AdminPage() {
 }
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0]
+  return mskDateStr()
 }

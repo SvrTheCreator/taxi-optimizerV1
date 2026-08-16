@@ -10,15 +10,17 @@ const MONTHS_FULL = ['января', 'февраля', 'марта', 'апрел
 
 function getDates(count = 1) {
   return Array.from({ length: count }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
+    // Считаем в МСК (UTC+3), чтобы дата (value) и подпись совпадали независимо от
+    // таймзоны устройства. Иначе ночью после 00:00 МСК value уходил на вчера.
+    const d = new Date(Date.now() + 3 * 3600 * 1000)
+    d.setUTCDate(d.getUTCDate() + i)
     return {
       value: d.toISOString().split('T')[0],
-      day: DAYS[d.getDay()],
-      dayFull: DAYS_FULL[d.getDay()],
-      date: d.getDate(),
-      month: MONTHS[d.getMonth()],
-      monthFull: MONTHS_FULL[d.getMonth()],
+      day: DAYS[d.getUTCDay()],
+      dayFull: DAYS_FULL[d.getUTCDay()],
+      date: d.getUTCDate(),
+      month: MONTHS[d.getUTCMonth()],
+      monthFull: MONTHS_FULL[d.getUTCMonth()],
     }
   })
 }
