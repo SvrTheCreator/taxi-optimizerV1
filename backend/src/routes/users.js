@@ -16,7 +16,7 @@ const PIN_RESET_TTL_HOURS = 24
 router.get('/me', async (req, res) => {
   const { data, error } = await supabase
     .from('users')
-    .select('id, phone, name, home_address, home_lat, home_lon, home_updated, temp_address, temp_lat, temp_lon, temp_used_at, role, created_at')
+    .select('id, phone, name, home_address, home_lat, home_lon, home_updated, temp_address, temp_lat, temp_lon, temp_used_at, role, created_at, last_seen')
     .eq('id', req.user.userId)
     .single()
 
@@ -24,6 +24,12 @@ router.get('/me', async (req, res) => {
   // и человек вошёл заново со свежим id. Иначе любая запись падала с FK-ошибкой.
   if (error?.code === 'PGRST116') return res.status(401).json({ error: 'Аккаунт не найден, войдите заново' })
   if (error) return res.status(500).json({ error: error.message })
+
+  // Отметка активности для авто-чистки неактивных (dailyCleanup). Троттлинг раз в час,
+  // fire-and-forget — не ждём и не роняем ответ. /me дёргается на старте и каждые 10с.
+  if (!data.last_seen || Date.now() - new Date(data.last_seen).getTime() > 3600e3) {
+    supabase.from('users').update({ last_seen: new Date().toISOString() }).eq('id', data.id).then(() => {}, () => {})
+  }
   res.json(data)
 })
 
