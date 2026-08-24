@@ -1,5 +1,8 @@
 import 'dotenv/config'
 import supabase from '../db/supabase.js'
+import { notifyAdmins } from '../lib/notifyAdmin.js'
+
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 // Ежедневная чистка «Переносов» и «Заявок», чтобы списки не копились бесконечно.
 // Запускается systemd-таймером рано утром (см. deploy/taxi-cleanup.*).
@@ -51,6 +54,7 @@ async function main() {
     .neq('role', 'admin')
     .lt('last_seen', staleCut)   // NULL сюда не попадёт — безопасно
   if (se) { console.error('[cleanup] неактивные:', se.message); return }
+  const deleted = []
   for (const u of stale || []) {
     // сначала следы (FK), потом сам юзер
     await supabase.from('shift_entries').delete().eq('user_id', u.id)
@@ -59,9 +63,16 @@ async function main() {
     await supabase.from('invite_codes').update({ used_by: null }).eq('used_by', u.id)
     await supabase.from('invite_codes').update({ created_by: null }).eq('created_by', u.id)
     const { error: de } = await supabase.from('users').delete().eq('id', u.id)
+    if (!de) deleted.push(u)
     console.log(`[cleanup] неактивный ${de ? 'НЕ удалён (' + de.message + ')' : 'удалён'}: ${u.name} ${u.phone} (last_seen ${u.last_seen?.slice(0, 10)})`)
   }
-  console.log(`[cleanup] неактивных под удаление: ${stale?.length ?? 0}`)
+  console.log(`[cleanup] неактивных удалено: ${deleted.length}`)
+
+  // Уведомляем админов, кого снесли (жена знает номера — сможет спросить)
+  if (deleted.length) {
+    const list = deleted.map(u => `• ${esc(u.name)} — ${esc(u.phone)}`).join('\n')
+    await notifyAdmins(`🗑 <b>Удалены неактивные</b> (21+ дней без захода):\n${list}`)
+  }
 }
 
 main().then(() => process.exit(0)).catch(e => { console.error('[cleanup]', e?.message); process.exit(1) })
