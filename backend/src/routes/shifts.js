@@ -236,6 +236,17 @@ router.delete('/:id', async (req, res) => {
     .eq('id', id)
     .single()
 
+  // Отмена не позже чем за 15 минут до поездки (работникам; админ — без ограничений).
+  // Время поездки — shift_time по МСК (UTC+3), поэтому час поездки минус 3 = UTC.
+  if (entry && req.user.role !== 'admin') {
+    const [y, m, d] = String(entry.shift_date).split('-').map(Number)
+    const [hh, mm] = String(entry.shift_time).split(':').map(Number)
+    const rideUtcMs = Date.UTC(y, m - 1, d, hh - 3, mm)
+    if (Date.now() >= rideUtcMs - 15 * 60 * 1000) {
+      return res.status(403).json({ error: 'Отменить можно не позже чем за 15 минут до поездки' })
+    }
+  }
+
   const query = supabase.from('shift_entries').delete().eq('id', id)
   if (req.user.role !== 'admin') {
     query.eq('user_id', req.user.userId)

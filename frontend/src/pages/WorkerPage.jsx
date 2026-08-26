@@ -121,8 +121,9 @@ export default function WorkerPage() {
     setShiftMsg('')
 
     if (current?.shift_time === time) {
-      await authFetch(`/api/shifts/${current.id}`, { method: 'DELETE' })
-      toast('Запись отменена', 'info')
+      const res = await authFetch(`/api/shifts/${current.id}`, { method: 'DELETE' })
+      if (res?.ok) toast('Запись отменена', 'info')
+      else toast((await res?.json())?.error || 'Не удалось отменить', 'error')
     } else {
       const res = await authFetch('/api/shifts', {
         method: 'POST',
@@ -150,8 +151,9 @@ export default function WorkerPage() {
     if (!current) return
     if (!window.confirm('Отменить поездку? Админ получит уведомление.')) return
     setLoading(true)
-    await authFetch(`/api/shifts/${current.id}`, { method: 'DELETE' })
-    toast('Поездка отменена', 'info')
+    const res = await authFetch(`/api/shifts/${current.id}`, { method: 'DELETE' })
+    if (res?.ok) toast('Поездка отменена', 'info')
+    else toast((await res?.json())?.error || 'Не удалось отменить', 'error')
     await Promise.all([loadShifts(), loadNotifications()])
     setLoading(false)
   }
