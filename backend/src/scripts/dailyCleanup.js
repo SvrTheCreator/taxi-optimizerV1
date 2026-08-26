@@ -43,10 +43,10 @@ async function main() {
   if (re) console.error('[cleanup] address_requests:', re.message)
   else console.log(`[cleanup] address_requests (обработанные) удалено: ${r?.length ?? 0}`)
 
-  // Авто-удаление неактивных работников (не админов): нет захода 21 день.
+  // Авто-удаление неактивных работников (не админов): нет захода 14 дней.
   // last_seen обновляется в /api/users/me при каждом открытии приложения.
-  // Колонка backfilled на сегодня, поэтому первые 3 недели никого не тронет.
-  const INACTIVE_DAYS = 21
+  // Колонка backfilled на сегодня, поэтому первые 2 недели никого не тронет.
+  const INACTIVE_DAYS = 14
   const staleCut = new Date(Date.now() - INACTIVE_DAYS * 24 * 3600 * 1000).toISOString()
   const { data: stale, error: se } = await supabase
     .from('users')
@@ -71,7 +71,7 @@ async function main() {
   // Уведомляем админов, кого снесли (жена знает номера — сможет спросить)
   if (deleted.length) {
     const list = deleted.map(u => `• ${esc(u.name)} — ${esc(u.phone)}`).join('\n')
-    await notifyAdmins(`🗑 <b>Удалены неактивные</b> (21+ дней без захода):\n${list}`)
+    await notifyAdmins(`🗑 <b>Удалены неактивные</b> (14+ дней без захода):\n${list}`)
   }
 }
 
