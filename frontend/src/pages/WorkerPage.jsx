@@ -101,6 +101,16 @@ export default function WorkerPage() {
   useEffect(() => { loadShifts() }, [loadShifts])
   useEffect(() => { loadNotifications() }, [loadNotifications])
 
+  // День мог смениться, пока приложение висело открытым (через полночь или из фона).
+  // Пересинхронизируем дату на реальное сегодня — иначе показывается вчерашняя запись
+  // под сегодняшним числом («записан», хотя на сегодня записи нет).
+  useEffect(() => {
+    const sync = () => setSelectedDate(d => { const t = todayStr(); return t !== d ? t : d })
+    const iv = setInterval(sync, 60000)
+    document.addEventListener('visibilitychange', sync)
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', sync) }
+  }, [])
+
   // Автообновление каждые 15 секунд
   useEffect(() => {
     const interval = setInterval(() => { loadShifts(); loadProfile(); loadNotifications() }, 10000)

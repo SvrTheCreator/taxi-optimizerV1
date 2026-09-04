@@ -231,6 +231,15 @@ export default function AdminPage() {
     return () => clearInterval(interval)
   }, [loadShifts, loadNotifications, loadRequests, loadManualDay])
 
+  // Пересинхрон даты на сегодня, если приложение висело открытым через полночь/из фона —
+  // иначе админ смотрит вчерашний список и «не видит» записавшихся на сегодня.
+  useEffect(() => {
+    const sync = () => setSelectedDate(d => { const t = todayStr(); return t !== d ? t : d })
+    const iv = setInterval(sync, 60000)
+    document.addEventListener('visibilitychange', sync)
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', sync) }
+  }, [])
+
   // Группируем смены по времени (зарегистрированные + «кнопочные» вручную)
   const shiftsByTime = {}
   for (const s of shifts) {
