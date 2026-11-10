@@ -7,6 +7,13 @@ import { notifyAdmins } from '../lib/notifyAdmin.js'
 const router = Router()
 router.use(authMiddleware)
 
+// Поездка уже скоро (≤15 мин) или прошла. shift_time — МСК (UTC+3), поэтому час минус 3 = UTC.
+function rideIsLocked(date, time) {
+  const [y, m, d] = String(date).split('-').map(Number)
+  const [hh, mm] = String(time).split(':').map(Number)
+  return Date.now() >= Date.UTC(y, m - 1, d, hh - 3, mm) - 15 * 60 * 1000
+}
+
 // GET /api/shifts?date=2026-04-02 — список записей на дату
 // Работник видит только свою (одну), админ видит все (с именами и адресами)
 router.get('/', async (req, res) => {
@@ -91,6 +98,11 @@ router.post('/', async (req, res) => {
 
     // Работник переносит свою смену — применяем СРАЗУ, без подтверждения
     // админа. Админ лишь получает информационное уведомление.
+    // Но не позже чем за 15 мин до текущей поездки — иначе пропустил такси и
+    // «перезаписался» на следующее (как с отменой; админ может перенести сам).
+    if (rideIsLocked(date, existing.shift_time)) {
+      return res.status(403).json({ error: 'Перенести можно не позже чем за 15 минут до поездки' })
+    }
     const [y, m, d] = date.split('-')
     const ruDate = `${d}.${m}.${y}`
     const fromTime = existing.shift_time
@@ -237,14 +249,8 @@ router.delete('/:id', async (req, res) => {
     .single()
 
   // Отмена не позже чем за 15 минут до поездки (работникам; админ — без ограничений).
-  // Время поездки — shift_time по МСК (UTC+3), поэтому час поездки минус 3 = UTC.
-  if (entry && req.user.role !== 'admin') {
-    const [y, m, d] = String(entry.shift_date).split('-').map(Number)
-    const [hh, mm] = String(entry.shift_time).split(':').map(Number)
-    const rideUtcMs = Date.UTC(y, m - 1, d, hh - 3, mm)
-    if (Date.now() >= rideUtcMs - 15 * 60 * 1000) {
-      return res.status(403).json({ error: 'Отменить можно не позже чем за 15 минут до поездки' })
-    }
+  if (entry && req.user.role !== 'admin' && rideIsLocked(entry.shift_date, entry.shift_time)) {
+    return res.status(403).json({ error: 'Отменить можно не позже чем за 15 минут до поездки' })
   }
 
   const query = supabase.from('shift_entries').delete().eq('id', id)
