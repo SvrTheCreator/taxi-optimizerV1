@@ -103,6 +103,10 @@ router.post('/', async (req, res) => {
     if (rideIsLocked(date, existing.shift_time)) {
       return res.status(403).json({ error: 'Перенести можно не позже чем за 15 минут до поездки' })
     }
+    // И не на поездку, которая уже уехала или уезжает в ближайшие 15 мин
+    if (rideIsLocked(date, time)) {
+      return res.status(403).json({ error: 'На это время уже поздно — выбери более позднее' })
+    }
     const [y, m, d] = date.split('-')
     const ruDate = `${d}.${m}.${y}`
     const fromTime = existing.shift_time
